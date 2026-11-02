@@ -29,6 +29,34 @@ module.exports=async({app,window,hosts,origin,dataRoot})=>{
     assert.equal(await evaluate('document.querySelectorAll("#desktopControls #app-export-diagnostics").length'),1);
     report.checks.push('global-diagnostics-toolbar');
     report.checks.push('local-home','sandboxed-renderer','no-auto-host','single-canvas');
+    // The real room entry requires an active personal profile. Use the real
+    // Home form on synthetic QA data rather than bypassing that requirement.
+    const debug=window.webContents.debugger;debug.attach('1.3');
+    await debug.sendCommand('Emulation.setFocusEmulationEnabled',{enabled:true});
+    const fn=await debug.sendCommand('Runtime.evaluate',{expression:'globalThis.__desktopPrepareClose'});
+    const properties=await debug.sendCommand('Runtime.getProperties',{objectId:fn.result.objectId});
+    const scopes=properties.internalProperties.find(p=>p.name==='[[Scopes]]')?.value;
+    assert.ok(scopes,'desktop scene scope');
+    const list=await debug.sendCommand('Runtime.getProperties',{objectId:scopes.objectId});
+    for(const scope of list.result){
+      if(!scope.value?.objectId||scope.value.description==='Global')continue;
+      const bindings=await debug.sendCommand('Runtime.getProperties',{objectId:scope.value.objectId});
+      for(const item of bindings.result){
+        if(item.value?.type!=='object'||!item.value.objectId)continue;
+        const match=await debug.sendCommand('Runtime.callFunctionOn',{objectId:item.value.objectId,
+          functionDeclaration:'function(){return typeof this.getCurrentPhase==="function"}',returnByValue:true});
+        if(match.result.value)await debug.sendCommand('Runtime.callFunctionOn',{objectId:item.value.objectId,
+          functionDeclaration:'function(){globalThis.__smokeScene=this}'});
+      }
+    }
+    await evaluate(`(()=>{const game=__smokeScene.sys.game;game.loop.stop();globalThis.__smokeFrame=setInterval(()=>game.step(performance.now(),1000/60),1000/60)})()`);
+    await evaluate(`__smokeScene.getCurrentPhase().showProfiles()`);
+    await evaluate(`__smokeScene.ui.getHandler().config.options.find(o=>o.label==='创建新档案').handler()`);
+    await until(`!!__smokeScene.ui.getHandler().inputs?.length`);
+    await evaluate(`(()=>{const form=__smokeScene.ui.getHandler();form.inputs[0].text='桌面测试档案';form.submitAction()})()`);
+    await until(`!!__smokeScene.getCurrentPhase().activeProfile&&__smokeScene.ui.getHandler().config?.options?.some(o=>o.label==='单人冒险')`);
+    report.checks.push('original-home-profile-created');
+    debug.detach();
     const status=await evaluate('pokerogueDesktop.storageStatus()');
     assert.equal(status.ok,true,status.code);assert.equal(status.value.initialized,true);
     report.nativeLaunches=await evaluate(`(async()=>{
@@ -87,6 +115,7 @@ module.exports=async({app,window,hosts,origin,dataRoot})=>{
     await writeFile(join(evidence,'desktop.png'),(await window.webContents.capturePage()).toPNG());
     assert.equal(report.errors.length,0);report.ok=true;
   }finally{
+    await evaluate('clearInterval(globalThis.__smokeFrame)').catch(()=>{});
     for(const p of peers)p.socket.terminate();
     await hosts.stop();await writeFile(join(evidence,'result.json'),JSON.stringify(report,null,2));
   }
