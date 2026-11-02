@@ -24,7 +24,7 @@ test(`original manual-first/forced-second pauses and resumes without reordering,
       assert.equal(c.continuation.currentPhase.phase.constructor,originalPhases.SelectTargetPhase);
       assert.equal(c.battle.turnCommands[1].move.targets.length,0);}
   }while(!(c.battle.turn===initial.battle.turn+1&&c.decision.kind==='wait-actions'));
-  assert.equal(targetStops,move===moves.Moves.TACKLE?1:0);
+  assert.equal(targetStops,mode==='encore'&&move===moves.Moves.TACKLE?1:0);
   assert.deepEqual(trace.slice(0,3),[[0,false],[0,true],[1,false]]);
   assert.equal(trace.filter(([seat,resume])=>seat===1&&resume).length,0);
   assert.ok(c.roster.entries.every(e=>e.pokemon.hp>0));assert.equal(c.roster.entries[1].pokemon.moveset[0].ppUsed,1);
@@ -44,7 +44,7 @@ test('both manual seats and both forced seats keep original queue order',async()
 });
 
 test('forced target cancel returns to original Command and reopens only its target',async()=>{
-  let c=await mixedContext();
+  let c=await mixedContext({mode:'encore'});
   while(c.decision.kind!=='wait-target')c=(await advanceMixed(c,chooseMixedInputs(c))).context;
   const before=codec.capture(c),ref=codec.restore(before),cancel={1:c.decision.options[1].find(a=>a.target===-1)};
   const expected=await referenceMixed(ref,cancel),actual=await advanceMixed(c,cancel);
@@ -55,7 +55,7 @@ test('forced target cancel returns to original Command and reopens only its targ
 });
 
 test('serial command and target decisions reject wrong owners and corrupted remaining stages',async()=>{
-  let c=(await advanceMixed(await mixedContext())).context;
+  let c=(await advanceMixed(await mixedContext({mode:'encore'}))).context;
   const saved=codec.capture(c),action=chooseMixedInputs(c)[0];
   await assert.rejects(advanceMixed(c,{1:action}));assert.deepEqual(codec.capture(c),saved);
   for(const mutate of [s=>{s.decision.requiredSeats=[1];s.decision.options={1:[{...action,pokemonId:101}]};},
@@ -82,7 +82,7 @@ test('suspension adapters cannot publish malformed decisions or unfinished work'
 });
 
 test('failed command and target resumes retain their exact original remaining stage',async()=>{
-  let c=(await advanceMixed(await mixedContext())).context;
+  let c=(await advanceMixed(await mixedContext({mode:'encore'}))).context;
   for(const kind of ['wait-actions','wait-target']){
     while(c.decision.kind!==kind)c=(await advanceMixed(c,chooseMixedInputs(c))).context;
     const before=codec.capture(c);

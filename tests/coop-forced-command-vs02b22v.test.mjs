@@ -1,4 +1,4 @@
-import {forcedCommandFixture} from './helpers/native-forced-command.mjs';
+import {forcedCommandFixture,legacyForcedTargetStop} from './helpers/native-forced-command.mjs';
 import test,{before}from'node:test';import assert from'node:assert/strict';import{createRequire}from'node:module';
 import{buildCoopRuntime}from'../scripts/build-coop-runtime.mjs';import{createOriginalRuleHost}from'../server/original-rule-host.mjs';
 let api;before(async()=>{await buildCoopRuntime();api=createRequire(import.meta.url)('../build/coop-runtime/original-runtime.cjs');api.describeOriginalCatalogs();});
@@ -38,29 +38,27 @@ test('a previously rejected entry seed runs original ability and stat phases bef
 });
 
 
-for(const autoSeat of[0,1])test('charged original move restores target stop and preserves partner input, seat '+autoSeat,async()=>{
+for(const autoSeat of[0,1])test('charged move retains its target and executes partner input once, seat '+autoSeat,async()=>{
  const{h,c}=await fixture({[autoSeat]:[{move:130,targets:[2],ignorePP:true}]},{[autoSeat]:130});try{
  let next=(await h.request('native-step',c)).checkpoint;assert.deepEqual(next.decision.requiredSeats,[1-autoSeat]);
  const partner=fight(next,1-autoSeat),pp=field(next,1-autoSeat).moveset[partner.cursor].fields.ppUsed;
  next=(await h.request('native-submit',{checkpoint:next,inputs:{[1-autoSeat]:partner}})).checkpoint;
- assert.equal(next.decision.kind,'wait-target');assert.deepEqual(next.decision.requiredSeats,[autoSeat]);
+ assert.equal(next.decision.kind,'continuing');
  const saved=clone(next);for(const seat of[0,1]){const view=await h.request('native-project',{checkpoint:saved,seat});assert.equal(JSON.stringify(view.shared).includes('nativeIntent'),false);}
- const choice=next.decision.options[autoSeat].find(o=>o.target>=2);assert.ok(choice);
- const resolved=await h.request('native-submit',{checkpoint:clone(next),inputs:{[autoSeat]:choice}});
- assert.equal(resolved.checkpoint.decision.kind,'continuing');
- assert.equal(resolved.checkpoint.battle.turnCommands[1-autoSeat].object.cursor.value,partner.cursor);
- const done=await drive(h,resolved.checkpoint);assert.equal(done.c.decision.kind,'wait-actions');
+ assert.equal(next.battle.turnCommands[1-autoSeat].object.cursor.value,partner.cursor);
+ const done=await drive(h,next);assert.equal(done.c.decision.kind,'wait-actions');
  assert.equal(field(done.c,autoSeat).moveset[0].fields.ppUsed,1,'charged follow-up preserves original ignorePP');
  assert.equal(field(done.c,1-autoSeat).moveset[partner.cursor].fields.ppUsed,pp+1,'partner command executes once');
  assert.deepEqual(saved,next);
  }finally{await h.close();}
 });
-test('cancelled forced target creates a fresh owned target stop without replaying partner choice',async()=>{
+test('cancelling a legacy forced target resumes automatically without replaying partner choice',async()=>{
  const{h,c}=await fixture({0:[{move:130,targets:[2],ignorePP:true}]},{0:130});try{
  let next=(await h.request('native-step',c)).checkpoint;const partner=fight(next,1);next=(await h.request('native-submit',{checkpoint:next,inputs:{1:partner}})).checkpoint;
+ next=legacyForcedTargetStop(next,0,partner);await h.request('native-validate-checkpoint',next);
  const cancel=next.decision.options[0].find(o=>o.target===-1);assert.ok(cancel);
  next=(await h.request('native-submit',{checkpoint:clone(next),inputs:{0:cancel}})).checkpoint;
- assert.equal(next.decision.kind,'wait-target');assert.deepEqual(next.decision.requiredSeats,[0]);
+ assert.equal(next.decision.kind,'continuing');
  }finally{await h.close();}
 });
 
@@ -68,6 +66,7 @@ test('cancelled forced target creates a fresh owned target stop without replayin
 test('stored partner command rejects trusted-argument injection and foreign owners before projection',async()=>{
  const{h,c}=await fixture({0:[{move:130,targets:[2],ignorePP:true}]},{0:130});try{
  let next=(await h.request('native-step',c)).checkpoint;const partner=fight(next,1);next=(await h.request('native-submit',{checkpoint:next,inputs:{1:partner}})).checkpoint;
+ next=legacyForcedTargetStop(next,0,partner);await h.request('native-validate-checkpoint',next);
  const phase=next.continuation.phaseQueue.find(d=>d.phase.type==='CommandPhase'&&d.phase.fields.nativeIntent);
  assert.ok(phase);const original=clone(next);
  for(const text of['not-json',JSON.stringify({...partner,ignorePP:true}),JSON.stringify({...partner,pokemonId:field(next,0).id})]){

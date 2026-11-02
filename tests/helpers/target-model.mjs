@@ -9,7 +9,10 @@ export function targetContext() {
   ctx.roster.field[3] = 103; ctx.battle.enemyParty.push(enemy); ctx.battle.enemyLevels.push(5);
   const p = ctx.roster.entries[0].pokemon;
   const forced = prepareQueuedFight(p);
-  const selected = selectFightCommand(p, 0, forced.cursor, forced.args, {fightCommand:0,noneMove:0,struggleMove:165,getMoveTargets:()=>({targets:[2,3],multiple:false})});
+  // Explicit legacy checkpoint: before queued targets were respected, this
+  // selection reopened a prompt. New continuations no longer create the stop.
+  const selected = selectFightCommand(p, 0, forced.cursor, [forced.args[0]], {fightCommand:0,noneMove:0,struggleMove:165,getMoveTargets:()=>({targets:[2,3],multiple:false})});
+  selected.command.args=forced.args;
   ctx.battle.turnCommands[0] = selected.command;
   ctx.decision = createTargetDecision('target-1', ctx, 0, () => ({targets:[2,3],multiple:false}));
   return ctx;

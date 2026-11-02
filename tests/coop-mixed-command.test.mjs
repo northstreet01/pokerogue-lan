@@ -62,7 +62,7 @@ test(`real WS resumes original manual/forced order and target stops, ${mode}`,as
 });
 
 for(const stage of ['pause','command','target'])test(`real WS ${stage} storage failure restores the exact remaining stage`,async()=>{
-  let initial=await mixedContext();
+  let initial=await mixedContext(stage==='target'?{mode:'encore'}:{});
   if(stage!=='pause')initial=(await advanceMixed(initial)).context;
   if(stage==='target')initial=(await advanceMixed(initial,chooseMixedInputs(initial))).context;
   const actions=chooseMixedInputs(initial),before=codec.capture(initial),expected=await referenceMixed(codec.restore(before),actions),adapter=adapterFor(initial);

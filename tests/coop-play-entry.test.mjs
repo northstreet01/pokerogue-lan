@@ -30,7 +30,7 @@ function phase() {
   globalThis.location = { origin };
   delete globalThis.localStorage; delete globalThis.sessionStorage;
   globalThis.indexedDB = new IDBFactory();
-  const p = new api.CoopPlayPhase({});
+  const p = new api.CoopPlayPhase({gameData:{isCoopRunAbandoned:()=>false}});
   const sent = [], errors = [];
   p.send = message => sent.push(structuredClone(message));
   p.setStatus = (message, error) => { if (error) errors.push(message); };
@@ -51,9 +51,9 @@ test('LAN entry discovers hosts without an IP field; remote entry and manual fal
   const button=label=>[...p.controls.querySelectorAll('button')].find(b=>b.textContent===label);
   try{
     p.renderLobbyControls();assert.equal(p.controls.querySelector('#coop-host-address'),null);
-    const scan=p.searchLanHosts();await p.searchLanHosts();assert.equal(calls,1);
+    const scan=p.searchLanRoom('ABC123');await p.searchLanRoom('ABC123');assert.equal(calls,1);
     finishScan({ok:true,value:[{hostId:'discovered-id',endpoint:'http://192.168.1.8:23456'}]});await scan;
-    button('连接房主 · 192.168.1.8:23456').click();await waitUntil(()=>connections.length===1);
+    await waitUntil(()=>connections.length===1);
     assert.deepEqual(connections[0],{endpoint:'http://192.168.1.8:23456',hostId:'discovered-id'});
     button('远程联机').click();await waitUntil(()=>p.controls.querySelector('#coop-host-address'));
     const address=p.controls.querySelector('#coop-host-address');address.value='172.16.2.5';address.dispatchEvent(new document.defaultView.Event('input'));
@@ -564,7 +564,7 @@ test('DOM exit remains outside replaced controls with input blocked and hung men
   assert.ok(!p.controls.contains(button));
   p.controls.replaceChildren();
   assert.equal(document.getElementById('coop-exit-session'), button);
-  assert.match(document.getElementById('coop-exit-note').textContent, /仅本人离开/);
+  assert.match(button.title, /仅本人离开/);
   p.inputReady = false; p.messageChain = new Promise(() => {});
   p.scene.ui.setMode = () => new Promise(() => {});
   await p.storage.beginSession(origin, p.session());
@@ -789,7 +789,7 @@ test('a rejected draft survives an older committed profile and unrelated syncSta
 test('battle syncStatus opens the original command port only for an ACK-ready unsubmitted seat', async () => {
   const { p } = phase();
   const modes = [];
-  p.scene = { ui: { setMode: async (...args) => modes.push(args) }, getPlayerField: () => [{ id: 101 }, { id: 202 }] };
+  p.scene = { gameData:{isCoopRunAbandoned:()=>false},ui: { setMode: async (...args) => modes.push(args) }, getPlayerField: () => [{ id: 101 }, { id: 202 }] };
   p.roomId = 'ABCDEF'; p.runId = 'run-1'; p.seat = 1;
   p.latest = { revision: 4, personal: { decision: { kind: 'wait-actions', requiredSeats: [0, 1] } } };
   const status = { type: 'syncStatus', roomId: p.roomId, runId: p.runId, revision: 4,
