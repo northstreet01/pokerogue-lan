@@ -10,7 +10,7 @@ import {createProfileRepository} from '../src/local-meta/repository.mjs';
 import {createMetaStore} from '../src/local-meta/idb-store.mjs';
 import {createMetaCodec} from '../src/local-meta/codec.mjs';
 import {digest} from '../src/local-meta/codec.mjs';
-import {readFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
 
 let api,base,dom;const factory=new IDBFactory();
 function globals(){
@@ -130,13 +130,18 @@ test('desktop release version does not change the original solo save schema or b
   assert.equal(saved.originalSystem.eggs.length,5);
 });
 
-test('solo Rillaboom G-Max and Aegislash blade survive profile save validation and reopen',async t=>{
+test('real solo form changes update ancestor dex legally and survive adventure save and reopen',async t=>{
   const {r,p}=await created(),io=await writer(t,p.profileId),g=game(io);
   g.scene.game.config.gameVersion=JSON.parse(readFileSync('package.json','utf8')).version;
   await g.data.loadSystem();
+  g.scene.ui={showText:(_text,_delay,done)=>done?.(),achvBar:{showAchv(){}}};
+  g.scene.playSoundWithoutBgm=()=>{};g.scene.updateModifiers=()=>{};
   for(const species of [812,681]){
     const pokemon=api.constructOriginalPokemon(g.runtime,species,50);
-    pokemon.formIndex=1;pokemon.calculateStats();g.scene.party=[pokemon];
+    pokemon.loadAssets=async()=>{};pokemon.updateInfo=async()=>{};
+    g.scene.party=[pokemon];
+    const change=api.pokemonFormChanges[species].find(c=>c.formKey===pokemon.species.forms[1].formKey);
+    assert.ok(change);await pokemon.changeForm(change);
     if(species===812){
       const type=api.modifierTypes.FORM_CHANGE_ITEM().withIdFromFunc(api.modifierTypes.FORM_CHANGE_ITEM)
         .generateType([pokemon],[api.FormChangeItem.MAX_MUSHROOMS]);
@@ -146,8 +151,83 @@ test('solo Rillaboom G-Max and Aegislash blade survive profile save validation a
     const saved=await r.read(p.profileId),session=saved.soloRuns[0].originalSession;
     assert.equal(session.party[0].species,species);assert.equal(session.party[0].formIndex,1);
     assert.deepEqual(api.originalSaveCodec.session(session),session);
+    for(const ancestor of species===812?[811,810]:[680,679]){
+      const attr=BigInt(saved.originalSystem.dexData[ancestor].caughtAttr);
+      assert.equal(attr&256n,0n,`ancestor ${ancestor} must not inherit the evolved form bit`);
+      assert.equal(attr&128n,128n,`ancestor ${ancestor} retains its normal form`);
+    }
   }
 });
+test('ancestor dex retains matching seasonal forms rather than always falling back to normal',async t=>{
+  const {r,p}=await created(),g=game(await writer(t,p.profileId));await g.data.loadSystem();
+  g.scene.ui={showText:(_text,_delay,done)=>done?.()};g.scene.playSoundWithoutBgm=()=>{};
+  const pokemon=api.constructOriginalPokemon(g.runtime,586,50);pokemon.formIndex=2;
+  await g.data.setPokemonCaught(pokemon,false);g.scene.party=[pokemon];
+  assert.equal(await g.data.saveEncounter(g.scene),true);
+  const saved=await r.read(p.profileId),deerling=BigInt(saved.originalSystem.dexData[585].caughtAttr);
+  assert.equal(deerling&512n,512n);
+});
+
+test('every catalogue form can update the solo dex and serialize without leaking descendant form bits',async t=>{
+  const {r,p}=await created(),g=game(await writer(t,p.profileId));await g.data.loadSystem();
+  g.scene.ui={showText:(_text,_delay,done)=>done?.()};g.scene.playSoundWithoutBgm=()=>{};g.scene.updateModifiers=()=>{};
+  const failures=[],report={species:0,forms:0,gmax:[],mega:[],other:0};
+  const log=console.log,debug=console.debug;console.log=()=>{};console.debug=()=>{};
+  try{
+    for(const species of api.allSpecies.filter(s=>s.forms.length)){
+      report.species++;
+      for(let index=0;index<species.forms.length;index++){
+        const form=species.forms[index],key=form.formKey;
+        const ancestors=[];let ancestor=species.speciesId;
+        while((ancestor=api.pokemonPrevolutions[ancestor]))ancestors.push(api.getPokemonSpecies(ancestor));
+        const oldInvalid=ancestors.filter(a=>index>=Math.max(a.forms.length,1)).map(a=>a.speciesId);
+        const detail={species:species.speciesId,name:species.name,form:index,key,oldInvalidAncestors:oldInvalid};
+        if(key.includes('gigantamax'))report.gmax.push(detail);
+        else if(/mega|primal|eternamax/.test(key))report.mega.push(detail);
+        else report.other++;
+        report.forms++;
+        try{
+          const pokemon=api.constructOriginalPokemon(g.runtime,species.speciesId,50);
+          pokemon.loadAssets=async()=>{};pokemon.updateInfo=async()=>{};g.scene.party=[pokemon];
+          await pokemon.changeForm({formKey:key});
+          const system=JSON.parse(g.data.captureSystemData());api.originalSaveCodec.system(system);
+          api.originalSaveCodec.session(JSON.parse(JSON.stringify(g.data.getSessionSaveData(g.scene))));
+          if(oldInvalid.length){
+            // Replay the former OR operation to prove this catalogue case
+            // really reproduces the reported validator failure.
+            const old=structuredClone(system);
+            for(const ancestor of ancestors){const entry=old.dexData[ancestor.speciesId];
+              entry.caughtAttr=(BigInt(entry.caughtAttr)|pokemon.getDexAttr()).toString();}
+            assert.throws(()=>api.originalSaveCodec.system(old),/INVALID_DEX_ATTRIBUTE/);
+          }
+          for(const ancestor of ancestors){
+            const mask=(1n<<BigInt(7+Math.max(ancestor.forms.length,1)))-1n;
+            assert.equal(BigInt(system.dexData[ancestor.speciesId].caughtAttr)&~mask,0n);
+          }
+        }catch(error){failures.push({...detail,error:String(error?.code??error?.message)});}
+      }
+    }
+    assert.equal(await g.data.saveEncounter(g.scene),true);
+    await r.read(p.profileId);
+  }finally{console.log=log;console.debug=debug;}
+  writeFileSync('build/form-save-catalog-audit.json',JSON.stringify({...report,failures},null,2));
+  t.diagnostic(JSON.stringify({species:report.species,forms:report.forms,gmax:report.gmax.length,
+    gmaxPreviouslyInvalid:report.gmax.filter(f=>f.oldInvalidAncestors.length).length,
+    megaPrimalEternamax:report.mega.length,other:report.other,failures:failures.length}));
+  assert.deepEqual(failures,[]);
+});
+
+test('cleared option menus reject late input and an option opening a new menu does not clear it',()=>{
+  const handler=Object.create(api.AbstractOptionSelectUiHandler.prototype);
+  Object.assign(handler,{active:true,config:null,cursor:0,scrollCursor:0,scene:{ui:{playSelect(){}}}});
+  for(const button of [api.Button.ACTION,api.Button.CANCEL,api.Button.UP,api.Button.DOWN])assert.equal(handler.processInput(button),false);
+  handler.config={options:[]};assert.equal(handler.processInput(api.Button.ACTION),false);
+  const next={options:[{label:'retry',handler(){}}]};
+  handler.config={options:[{label:'old',handler(){handler.config=next;}}]};
+  handler.clear=()=>{throw Error('Must not clear newly opened menu');};
+  assert.equal(handler.processInput(api.Button.ACTION),true);assert.equal(handler.config,next);
+});
+
 test('write failure cannot commit half an encounter and an exact retry saves both original snapshots',async t=>{
   const {r,p}=await created(),store=createMetaStore({indexedDB:factory});let fail=false;
   const repo=createProfileRepository({codec:createMetaCodec(api.originalSaveCodec),store:{read:store.read,

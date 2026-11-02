@@ -1259,7 +1259,12 @@ export class GameData {
     return new Promise<void>(resolve => {
       const dexEntry = this.dexData[species.speciesId];
       const caughtAttr = dexEntry.caughtAttr;
-      dexEntry.caughtAttr |= pokemon.getDexAttr();
+      // A descendant's form index belongs to its own catalogue. Registering
+      // ancestors must match their form key, or use their normal form; e.g.
+      // G-Max Rillaboom must not unlock a nonexistent G-Max Grookey.
+      const formIndex = species.speciesId === pokemon.species.speciesId ? pokemon.formIndex
+        : Math.max(species.forms.findIndex(form => form.formKey === pokemon.getFormKey()), 0);
+      dexEntry.caughtAttr |= (pokemon.getDexAttr() & (DexAttr.DEFAULT_FORM - 1n)) | this.getFormAttr(formIndex);
       dexEntry.natureAttr |= Math.pow(2, pokemon.nature + 1);
       if (incrementCount) {
         if (!fromEgg) {

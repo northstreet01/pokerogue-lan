@@ -106,6 +106,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
   }
 
   processInput(button: Button): boolean {
+    if (!this.active || !this.config?.options.length) return false;
     const ui = this.getUi();
 
     let success = false;
@@ -125,9 +126,11 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
         else
           return false;
       }
-      const option = this.config.options[this.cursor + (this.scrollCursor - (this.scrollCursor ? 1 : 0))];
+      const config = this.config;
+      const option = config.options[this.cursor + (this.scrollCursor - (this.scrollCursor ? 1 : 0))];
+      if (!option) return false;
       option.handler();
-      if (!option.keepOpen)
+      if (!option.keepOpen && this.config === config)
         this.clear();
       playSound = !option.overrideSound;
     } else {

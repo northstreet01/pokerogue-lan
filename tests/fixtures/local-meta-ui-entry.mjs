@@ -21,4 +21,7 @@ export {Button} from '../../src/battle-scene';
 export {default as AchvsUiHandler} from '../../src/ui/achvs-ui-handler';
 export {achvs} from '../../src/system/achv';
 export {modifierTypes} from '../../src/modifier/modifier-type';
-export {FormChangeItem} from '../../src/data/pokemon-forms';
+export {FormChangeItem,pokemonFormChanges} from '../../src/data/pokemon-forms';
+export {default as AbstractOptionSelectUiHandler} from '../../src/ui/abstact-option-select-ui-handler';
+export {allSpecies} from '../../src/data/pokemon-species';
+export {pokemonPrevolutions} from '../../src/data/pokemon-evolutions';
