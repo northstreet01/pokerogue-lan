@@ -28,4 +28,7 @@ await writeFile(join(root,'package.json'),JSON.stringify({name:'pokerogue-lan',p
   version:pkg.version,type:'module',main:'desktop/main.cjs',private:true},null,2));
 await cp('LICENSE',join(root,'LICENSE'));
 await cp('README.md',join(root,'使用说明.md'));
+await cp('CHANGELOG.md',join(root,'CHANGELOG.md'));
+await mkdir(join(root,'.github/images'),{recursive:true});
+await cp('.github/images/coop-room.png',join(root,'.github/images/coop-room.png'));
 console.log('Desktop application prepared:',root);

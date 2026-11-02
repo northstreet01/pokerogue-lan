@@ -9,7 +9,10 @@ export function selectFightCommand(pokemon, fieldIndex, cursor, args, rules) {
     || (useStruggle = cursor > -1 && !pokemon.getMoveset().filter(m => m.isUsable(pokemon)).length))) return null;
   const moveId = !useStruggle ? cursor > -1 ? pokemon.getMoveset()[cursor].moveId : rules.noneMove : rules.struggleMove;
   const command = { command: rules.fightCommand, cursor, move: { move: moveId, targets: [], ignorePP: args[0] }, args };
-  const targets = args.length < 3 ? rules.getMoveTargets(pokemon, moveId) : args[2];
+  // CommandPhase's queued continuation supplies its saved target set as the
+  // second argument. Reopening target selection here can suspend an automatic
+  // charge/frenzy turn that was deliberately excluded from collected input.
+  const targets = args[2] ?? args[1] ?? rules.getMoveTargets(pokemon, moveId);
   if (!moveId) command.targets = [fieldIndex];
   const needsTarget = targets.targets.length > 1 && !targets.multiple;
   if (!needsTarget) command.move.targets = targets.targets;

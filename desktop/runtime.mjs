@@ -76,7 +76,7 @@ export async function startLanHost({directory,port=HOST_PORT,bind='0.0.0.0',adap
     .map(row=>`http://${row.address}:${port}`);
   // Discovery failure must not take down an otherwise usable TCP host.
   let discovery=null;
-  if(bind==='0.0.0.0')try{discovery=await startDiscoveryResponder({hostId:identity.hostId,port});}catch{}
+  if(bind==='0.0.0.0')try{discovery=await startDiscoveryResponder({hostId:identity.hostId,port,hasRoom:roomId=>service.rooms.has(roomId)});}catch{}
   let closing;
   return {state:{running:true,hostId:identity.hostId,port,endpoint:`http://127.0.0.1:${port}`,addresses,discovery:!!discovery},
     close:()=>closing??=(async()=>{discovery?.close();await service.close();await adapter.closeAll();await closeHttp(server);})()};

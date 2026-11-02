@@ -60,16 +60,16 @@ export function renderTeams(target,scene,selections,seat,{species,t,names=[]}){
   target.replaceChildren(...rows);
 }
 
-export function renderInventory(target,scene,items,t){
+export function renderInventory(target,scene,items,t,labelText){
   target.hidden=!items.length;target.replaceChildren();if(!items.length)return;
-  const label=document.createElement('span');label.className='coop-inventory-label';label.textContent=t('myItems');target.append(label);
+  const label=document.createElement('span');label.className='coop-inventory-label';label.textContent=labelText??t('myItems');target.append(label);
   const strip=document.createElement('div');strip.className='coop-item-strip';strip.setAttribute('role','list');
   items.forEach((item,index)=>{
     const entry=document.createElement('div');entry.className='coop-item-entry';entry.setAttribute('role','listitem');
     const button=document.createElement('button');button.type='button';button.className='coop-item';
     button.append(atlasIcon(scene,'items',item.icon,item.name));
     const count=document.createElement('span');count.className='coop-item-count';count.textContent='×'+item.count;button.append(count);
-    const description=document.createElement('div');description.className='coop-item-description';description.id=`coop-item-${index}`;description.setAttribute('role','tooltip');
+    const description=document.createElement('div');description.className='coop-item-description';description.id=`${target.id||'coop'}-item-${index}`;description.setAttribute('role','tooltip');
     const title=document.createElement('strong');title.textContent=item.name+' ×'+item.count;
     const body=document.createElement('div');body.textContent=item.description;
     const owner=document.createElement('div');owner.textContent=item.owner?t('heldBy',{name:item.owner}):t('partyItem');

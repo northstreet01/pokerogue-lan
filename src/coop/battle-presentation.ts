@@ -579,6 +579,10 @@ export class CoopBattlePresentation {
     }
     this.displayed = [...keep] as Pokemon[];
     this.displayedById = new Map(this.displayed.map(display => [display.id, display]));
+    // A run can encounter thousands of distinct Pokemon. Retain cache keys
+    // only for live displays, including when a form replaced the same ID.
+    for (const cache of [this.looks, this.modelKeys])
+      for (const id of cache.keys()) if (!this.displayedById.has(id)) cache.delete(id);
     if (batch.preserveFieldBinding) this.field = batch.field;
     else this.attachField(batch.field, batch.snapshot.shared);
     if (batch.sceneChanged) this.paint(batch.snapshot.shared);

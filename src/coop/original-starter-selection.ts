@@ -68,7 +68,10 @@ export function validateStarterSelection(value) {
     fail('INVALID_STARTER_EGG_MOVES');
   if (value.moveset !== null) {
     array(value.moveset, 1, 4, 'INVALID_STARTER_MOVESET');
-    if (new Set(value.moveset).size !== value.moveset.length || value.moveset.some(move =>
+    // The original starter rules intentionally allow repeated moves (notably
+    // Smeargle's four Sketch slots). Validate IDs here and let the species form
+    // validate whether the selected moves are legal for this starter.
+    if (value.moveset.some(move =>
       !isInt(move) || move <= 0 || !allMoves[move] || allMoves[move].id !== move)) fail('INVALID_STARTER_MOVESET');
   }
   return { version: STARTER_SELECTION_VERSION, speciesId: value.speciesId, dexAttr: value.dexAttr,

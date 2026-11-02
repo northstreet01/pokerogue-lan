@@ -15,6 +15,19 @@ before(async()=>{
 });
 const fixture=()=>presentationFixture(api);
 
+test('replacing encounter displays releases retired Pokemon cache entries',async()=>{
+ const {p,snapshot,model,counts}=fixture();const start=model.id;
+ for(let revision=0;revision<40;revision++){
+  model.id=start+revision;
+  const view={...snapshot.shared.pokemon[0],id:model.id};
+  await p.apply({...snapshot,revision,shared:{...snapshot.shared,field:[model.id,null,null,null],pokemon:[view]}},
+    {byId:new Map([[model.id,{pokemon:model}]])});
+  assert.equal(p.looks.size,1);assert.equal(p.modelKeys.size,1);assert.equal(p.displayedById.size,1);
+ }
+ assert.equal(counts.created,40);assert.equal(counts.destroyed,39);
+ p.clear();assert.equal(counts.destroyed,40);assert.equal(p.looks.size,0);
+});
+
 test('confirmed first lobby start retains entrance batch, while a direct reconnect restores only its final frame',async()=>{
  for(const entrance of [true,false]){
   const f=fixture();await f.p.apply(f.snapshot,f.applied,{replay:true,entrance});

@@ -56,6 +56,37 @@ async function migrated(env=setup()) {
   await env.repo.install(plan);return {...env,plan,pid:plan.profile.profileId};
 }
 
+test('offline abandonment is a durable defeat, releases only its eggs and rejects later host grants',async()=>{
+  const e=setup(),created=await e.repo.create(original.system),pid=created.profileId;
+  const lease=await e.repo.acquire(pid,'setup');
+  await e.repo.save(pid,0,lease,p=>({...p,schemaVersion:2,hatchResults:[],
+    originalSystem:{...p.originalSystem,eggs:[{id:123,gachaType:0,hatchWaves:0,timestamp:55},
+      {id:124,gachaType:0,hatchWaves:3,timestamp:56},{id:125,gachaType:0,hatchWaves:0,timestamp:57}]},
+    eggRun:{sourceRunId:'run-1',eggs:[{id:123,timestamp:55},{id:124,timestamp:56}]},
+    deferredHatches:[{sourceRunId:'run-1',eggId:123,eggTimestamp:55,state:'waiting-terminal',terminal:null},
+      {sourceRunId:'other-run',eggId:125,eggTimestamp:57,state:'waiting-terminal',terminal:null}]}));
+  await e.repo.release(pid,lease);
+  const before=await e.repo.read(pid),io=await openGameProfileIO(e.repo,pid,{mode:'home'});
+  e.fault(()=>true);
+  await assert.rejects(io.abandonCoopRun('run-1'),/INJECTED_WRITE_FAILURE/);
+  assert.deepEqual(await e.repo.read(pid),before);
+  e.fault(null);
+  await io.abandonCoopRun('run-1');await io.abandonCoopRun('run-1');await io.close();
+  const saved=await e.reopen().read(pid);
+  assert.equal(saved.eggRun,null);assert.deepEqual(saved.originalSystem,before.originalSystem);
+  assert.equal(saved.grantLedger.filter(g=>g.id==='coop-abandon:run-1').length,1);
+  assert.deepEqual(saved.deferredHatches[0].terminal,{result:'defeat',receiptId:'coop-abandon:run-1'});
+  assert.equal(saved.deferredHatches[1].state,'waiting-terminal');
+  const coop=await openGameProfileIO(e.repo,pid,{mode:'coop'});
+  try{
+    await assert.rejects(coop.applyCoopGrants([{id:'late',seat:0,payload:{version:2}}],
+      {hostId:'host-1',runId:'run-1',roomId:'ABCDEF',seat:0,profileId:pid,token:'token',isCurrent:()=>true},
+      ()=>{throw Error('must not apply');}),/LOCAL_COOP_RUN_ABANDONED/);
+  }finally{await coop.close();}
+  const home=await openGameProfileIO(e.repo,pid,{mode:'home'});
+  await home.abandonCoopRun('other-run');await home.close();
+});
+
 test('cooperative receipts and collection commit together, survive retry and reject changed payload or owner',async()=>{
   const e=setup(),created=await e.repo.create(original.system),profileId=created.profileId;
   const io=await openGameProfileIO(e.repo,profileId,{mode:'coop',owner:'coop-writer'});

@@ -99,6 +99,7 @@ async function openUiRoom(seat, t, lobbyOnly = false, prepared = null, homeEntry
   const scene = { ui, getCurrentPhase: () => phase, getStandbyPhase: () => phase,
     getPlayerField: () => [0, 1].map(index => index === phase.seat ? phase.model.applied?.personal.party[0]?.pokemon : null) };
 
+  scene.gameData={isCoopRunAbandoned:()=>false};
   const phase = new api.CoopPlayPhase(scene);
   phase.model = api.createOriginalClientModel(api);
   phase.lastProfile = profiles[seat]; phase.profileDirty = true;
@@ -563,7 +564,55 @@ for (const seat of [0,1]) test(`VS18 original persistent Party seat ${seat}: syn
   }finally{await env.close();}
 });
 
-for (const seat of [0, 1]) test(`original Command/Ball seat ${seat} reaches real selected Worker capture and next input`, { timeout: 90000 }, async t => {
+test('diagnostic export stays in the bottom toolbar outside decision menus and is removed on exit', {timeout:90000},async t=>{
+ const env=await openUiRoom(0,t,true);
+ try{
+  const toolbar=document.createElement('div');toolbar.id='desktopControls';document.body.append(toolbar);
+  env.phase.createOverlay();
+  const button=document.getElementById('coop-export-diagnostics');
+  assert.equal(button.parentElement,toolbar);assert.equal(button.disabled,false);
+  assert.equal(env.phase.panel.contains(button),false);
+  env.phase.inputReady=false;env.phase.controls.replaceChildren();
+  assert.equal(button.isConnected,true);assert.equal(button.disabled,false);
+  env.phase.stopSession();assert.equal(button.isConnected,false);
+ }finally{await env.close();}
+});
+
+test('LAN room code searches automatically, offers manual fallback, and joins after host hello', {timeout:90000},async t=>{
+ const env=await openUiRoom(0,t,true),previous=Object.getOwnPropertyDescriptor(globalThis,'pokerogueDesktop');
+ try{
+  const {phase}=env,searches=[],joined=[],connected=[];
+  let found=[];
+  Object.defineProperty(globalThis,'pokerogueDesktop',{configurable:true,value:{version:1,discoverHosts:async code=>{searches.push(code);return {ok:true,value:found};}}});
+  phase.roomId=null;phase.versions=null;phase.roomCodeDraft='ABC123';
+  await phase.joinRoom('ABC123');
+  assert.deepEqual(searches,['ABC123']);assert.equal(phase.manualLanAddress,true);
+  assert.match(phase.status.textContent,/未找到/);assert.ok(phase.controls.querySelector('#coop-host-address'));
+  found=[{hostId:'12345678-1234-1234-1234-123456789abc',endpoint:'http://192.168.1.5:18735'}];
+  phase.manualLanAddress=false;phase.connect=async endpoint=>connected.push(endpoint);
+  phase.joinConnectedRoom=async code=>joined.push(code);
+  await phase.joinRoom('ABC123');
+  assert.deepEqual(connected,[found[0].endpoint]);assert.deepEqual(joined,[]);
+  await phase.onMessage({type:'welcome'});
+  assert.deepEqual(joined,['ABC123']);assert.equal(phase.pendingLanJoin,null);
+ }finally{if(previous)Object.defineProperty(globalThis,'pokerogueDesktop',previous);else delete globalThis.pokerogueDesktop;await env.close();}
+});
+
+test('stale rejected battle action releases the active input gate and reopens Command', {timeout:90000}, async t=>{
+ const env=await openUiRoom(0,t);
+ try{
+  const {phase,ui}=env,snapshot=phase.latest,requests=[];
+  phase.send=message=>requests.push(message);
+  phase.actionId='stale-action';phase.pendingAction={action:{kind:'fight'},expectedRevision:snapshot.revision};
+  phase.battleInputActive=true;ui.mode=api.Mode.MESSAGE;
+  await phase.onMessage({type:'actionReceipt',roomId:phase.roomId,actionId:'stale-action',accepted:false,
+    code:'STALE_DECISION',revision:snapshot.revision,decisionId:snapshot.decisionId});
+  assert.ok(requests.some(message=>message.type==='requestSnapshot'));
+  assert.equal(ui.mode,api.Mode.COMMAND);assert.equal(phase.actionId,null);assert.equal(phase.submitted,false);
+ }finally{await env.close();}
+});
+
+for (const seat of [0, 1]) for (const peerTiming of ['after','before','during']) test(`original Command/Ball seat ${seat} peerTiming=${peerTiming} reaches real selected Worker capture and next input`, { timeout: 90000 }, async t => {
   const env = await openUiRoom(seat, t);
   try {
     const { phase, command, ball, ui } = env;
@@ -583,15 +632,26 @@ for (const seat of [0, 1]) test(`original Command/Ball seat ${seat} reaches real
       shared: before.shared, resources: before.personal.resources,
       checkpoint: env.server.rooms.get(phase.roomId).checkpoint.nativeCheckpoint?.enemyModifiers,
     }));
+    if(peerTiming==='before'){
+      env.submitPeer(attack(env.peerSnapshot()));
+      await until(()=>Object.hasOwn(env.server.rooms.get(phase.roomId).inputs,1-seat),'peer attack accepted before opening ball menu');
+    }
     assert.equal(command.processInput(api.Button.ACTION), true);
     await until(() => ui.mode === api.Mode.BALL, 'original ball menu');
+    if(peerTiming==='during'){
+      env.submitPeer(attack(env.peerSnapshot()));
+      await until(()=>Object.hasOwn(env.server.rooms.get(phase.roomId).inputs,1-seat),'peer attack accepted while ball menu open');
+      assert.equal(ui.mode,api.Mode.BALL);
+    }
     assert.equal(ball.processInput(api.Button.ACTION), true);
     await until(() => phase.submitted || env.errors.length, 'capture receipt');
     assert.deepEqual(env.errors, []);
+    if(peerTiming==='after'){
     const durable = (await env.server.store.load()).find(room => room.roomId === phase.roomId);
     assert.equal(durable.inputs[seat].kind, 'ball');
     const other = env.peerSnapshot();
     env.submitPeer(other.personal.decision.options.find(option => option.kind === 'fight' && (option.target === null || option.target >= 2)));
+    }
     await until(() => phase.latest.revision > before.revision && phase.inputReady || env.errors.length, 'capture result ACK');
     assert.deepEqual(env.errors, []);
     assert.equal(phase.latest.personal.resources.pokeballs[0], before.personal.resources.pokeballs[0] - 1);

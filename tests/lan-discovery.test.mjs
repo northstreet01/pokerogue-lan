@@ -31,6 +31,17 @@ test('discovery rejects unrelated, oversized, mismatched and invalid replies and
     [{hostId,endpoint:'http://127.0.0.1:23456'}]);}finally{peer.close();}
 });
 
+test('room-code discovery only returns the host owning the requested room',async()=>{
+ const probe=dgram.createSocket('udp4'),port=await bind(probe);probe.close();
+ const responder=await startDiscoveryResponder({hostId,port:23456,discoveryPort:port,hasRoom:code=>code==='ABC123'});
+ try{
+  assert.deepEqual(await discoverLanHosts({roomId:'ABC123',duration:120,discoveryPort:port,targets:['127.0.0.1']}),
+    [{hostId,endpoint:'http://127.0.0.1:23456'}]);
+  assert.deepEqual(await discoverLanHosts({roomId:'000000',duration:120,discoveryPort:port,targets:['127.0.0.1']}),[]);
+  await assert.rejects(discoverLanHosts({roomId:'invalid'}),/INVALID_ROOM_CODE/);
+ }finally{responder.close();}
+});
+
 test('remote entry accepts plain IP/domain and custom port while rejecting credentials and paths',async()=>{
   assert.equal(remoteHostEndpoint('172.16.2.5'),'http://172.16.2.5:18735');
   assert.equal(remoteHostEndpoint(' example.com:23456 '),'http://example.com:23456');

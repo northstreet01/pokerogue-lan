@@ -64,5 +64,84 @@ body:has(#coop-play-overlay){padding-top:112px;box-sizing:border-box}
 #coop-play-overlay .coop-item:focus-visible{outline:3px solid #e6c65c}
 #coop-play-overlay .coop-item[data-dismissed=true]+.coop-item-description{display:none}
 #desktopControls { color: #dae7f7; }
+#desktopControls #coop-export-diagnostics{font:inherit;cursor:pointer}
+body>#coop-export-diagnostics{position:fixed;right:12px;bottom:12px;z-index:150;cursor:pointer}
 #app-navigation-error { flex-basis: 100%; color: #ffd4bc; }
 @media(max-width:600px){#coop-play-overlay .coop-team-slot{font-size:10px}#coop-play-overlay .coop-team-heading{font-size:12px}#coop-play-overlay .coop-atlas-icon{width:36px}#coop-play-overlay .coop-inventory{align-items:flex-start}}
+
+/* Match the game's square, layered dialogue windows rather than web forms. */
+#coop-play-overlay{font-family:emerald,pkmnems,"Microsoft YaHei",sans-serif}
+#coop-play-overlay button,#coop-play-overlay input,#desktopControls button{
+ border-radius:0;background:#f8f8e8;color:#343847;border:2px solid #667082;
+ box-shadow:inset 0 0 0 2px #fff,0 2px 0 #343847;font-family:inherit;
+}
+#coop-play-overlay button:hover,#desktopControls button:hover{background:#e5e8d8;color:#202632}
+#coop-play-overlay button:focus-visible,#coop-play-overlay input:focus-visible,#desktopControls button:focus-visible{
+ outline:2px solid #dcaa46;outline-offset:3px;
+}
+#coop-play-overlay button.primary,#coop-play-overlay button[aria-pressed="true"]{
+ background:#dce4d6;border-color:#485b60;color:#273b39;
+}
+#coop-play-overlay.room-lobby:not(.selecting-team){padding:24px 12px 60px;background:rgba(24,32,40,.08)}
+#coop-play-overlay.room-lobby:not(.selecting-team) .panel{
+ width:min(520px,94vw);max-height:calc(100dvh - 150px);padding:22px 24px;
+ background:#f8f8e8;border:8px double #626d80;box-shadow:0 4px 0 #303746;line-height:1.65;
+}
+#coop-play-overlay.room-lobby h1{font-size:25px;letter-spacing:3px;border-bottom:2px solid #c5c9b9;padding-bottom:8px;margin:0 0 10px}
+#coop-play-overlay.room-lobby .status{font-size:14px;color:#626777;margin:4px 0}
+#coop-play-overlay.room-lobby .coop-room-controls{display:flex;flex-direction:column;gap:8px}
+#coop-play-overlay.room-lobby .row{margin:2px 0;gap:8px}
+#coop-play-overlay.room-lobby button{font-size:16px;padding:7px 12px;min-height:36px}
+#coop-play-overlay.room-lobby .room-join{order:1;border-top:2px solid #c5c9b9;padding-top:14px;margin-top:6px}
+#coop-play-overlay.room-lobby #coop-room-code{width:9ch!important;flex:1;font-size:22px;letter-spacing:4px;text-align:center;text-transform:uppercase}
+#coop-play-overlay.room-lobby #coop-room-code::placeholder{font-size:13px;letter-spacing:0}
+#coop-play-overlay.room-lobby .connection-options{order:5;font-size:13px;color:#687080}
+#coop-play-overlay.room-lobby .coop-room-controls>button{order:4;align-self:flex-start;min-height:24px;padding:2px 0;
+ border:0;box-shadow:none;background:transparent;font-size:13px;text-decoration:underline;text-underline-offset:4px}
+#coop-play-overlay.room-lobby:not(.selecting-team) .panel{background:#f8f8fc;border-color:#77758a}
+#coop-play-overlay .connection-options summary{cursor:pointer;padding:4px 0}
+#coop-play-overlay.room-lobby .room-player,#coop-play-overlay .coop-team-row{background:#e9ecdf;border:2px solid #959e9e;border-radius:0}
+#coop-play-overlay:not(.room-lobby) .panel,#coop-play-overlay.selecting-team .panel{
+ background:#f8f8e8;color:#343847;border-bottom:4px double #626d80;gap:2px 10px;padding:5px 12px;
+}
+#coop-play-overlay:not(.room-lobby) h1{display:none}
+#coop-play-overlay:not(.room-lobby) .status{font-size:12px;max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#coop-play-overlay:not(.room-lobby) .status:hover{white-space:normal}
+#coop-play-overlay .coop-progress,#coop-play-overlay.selecting-team .coop-progress{color:#566771;font-size:12px}
+#coop-play-overlay .coop-inventory{flex:1 1 44%;gap:6px;min-width:0;align-items:center}
+#coop-play-overlay .coop-inventory-label{font-size:12px;color:#445e50;border-left:3px solid #688c6b;padding-left:5px}
+#coop-play-overlay .enemy .coop-inventory-label{color:#884e48;border-color:#ad6b59}
+#coop-play-overlay .coop-item-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:2px;scrollbar-width:thin}
+#coop-play-overlay button.coop-item{width:30px;height:28px;min-height:28px;flex:none;background:#e8ecdc;border:1px solid #9aab96;box-shadow:none}
+#coop-play-overlay .enemy button.coop-item{background:#f1e5d7;border-color:#c5a48e}
+#coop-play-overlay .coop-item .coop-atlas-icon{width:24px;height:24px}
+#coop-play-overlay .coop-item-count{font:10px emerald,system-ui;background:#f8f8e8;color:#343847;text-shadow:none}
+#coop-play-overlay .coop-item-description{background:#f8f8e8;border:6px double #626d80;border-radius:0;box-shadow:0 3px 0 #303746}
+#desktopControls{display:flex;justify-content:center;align-items:center;gap:10px;padding:7px 10px;background:#343b49;
+ border-top:3px double #a1a9ae;font:14px emerald,"Microsoft YaHei",sans-serif;color:#ececda}
+#desktopControls button{font:inherit;padding:4px 12px;min-height:28px}
+body #desktopControls{background:#343b49;border-top:3px double #a1a9ae;font:14px emerald,"Microsoft YaHei",sans-serif;padding:7px 10px;gap:10px}
+body #desktopControls button{font:inherit;border-radius:0;background:#f8f8e8;color:#343847;border:2px solid #667082;
+ box-shadow:inset 0 0 0 2px #fff,0 2px 0 #222936;padding:4px 12px;min-height:28px}
+#desktopControls [data-desktop-key="UP"],#desktopControls [data-desktop-key="DOWN"],
+#desktopControls [data-desktop-key="LEFT"],#desktopControls [data-desktop-key="RIGHT"],
+#desktopControls [data-desktop-key="MENU"],#desktopControls [data-desktop-key="SUBMIT"],#desktopControls>span{display:none}
+body:has(#coop-play-overlay.selecting-team) #desktopControls [data-desktop-key="SUBMIT"]{display:inline-block}
+body:has(#coop-play-overlay) #desktopControls [data-app-route]{display:none}
+body:not(:has(#coop-play-overlay)) #desktopControls [data-app-route="/"]{display:none}
+body:has(#coop-play-overlay.room-lobby:not(.selecting-team)) #desktopControls [data-desktop-key]{display:none}
+#desktopControls #coop-reload-checkpoint:disabled{display:none}
+/* Reuse the original game's nine-slice frame, at integer pixel scales. */
+#coop-play-overlay.room-lobby:not(.selecting-team) .panel{
+ border:12px solid transparent;border-image:url('/images/ui/windows/window_1.png') 6 fill / 12px stretch;
+ image-rendering:pixelated;box-shadow:none;
+}
+#coop-play-overlay .coop-item-description{
+ border:6px solid transparent;border-image:url('/images/ui/windows/window_1.png') 6 fill / 6px stretch;
+}
+body #desktopControls button{
+ border:4px solid transparent;border-image:url('/images/ui/windows/window_1_thin.png') 6 fill / 4px stretch;
+ image-rendering:pixelated;box-shadow:none;
+}
+@media(max-width:600px){#desktopControls{gap:5px;flex-wrap:wrap;font-size:12px;padding:4px}#desktopControls button{padding:4px 7px}
+ #coop-play-overlay.room-lobby:not(.selecting-team) .panel{padding:12px}#coop-play-overlay .coop-inventory{flex-basis:100%;max-height:30px}}

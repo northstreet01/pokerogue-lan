@@ -2036,6 +2036,13 @@ export function projectNativeSnapshot(runtime, payload) {
     terrainColorRatio: c.arena.getBgTerrainColorRatioForBiome(),
     field: fieldIds,
     pokemon: fieldEntries.filter(Boolean).map(publicPokemonView),
+    enemyItems: c.enemyModifiers.filter(modifier=>!(modifier instanceof PokemonHeldItemModifier)
+      || fieldIds.slice(2).includes(modifier.pokemonId)).map(modifier=>{
+      const owner=fieldEntries.find(entry=>entry?.pokemon.id===(modifier as any).pokemonId)?.pokemon;
+      return {name:modifier.type.getDisplayName(),description:modifier.type.getDescription(binding.root),
+        icon:modifier.type.iconImage,count:modifier.stackCount,
+        owner:owner?owner.species.getName(owner.formIndex):null,battlesLeft:(modifier as any).battlesLeft??null};
+    }),
     decision: { id: c.decision.id, kind: c.decision.kind, requiredSeats: [...c.decision.requiredSeats] },
   };
   const player = c.players[payload.seat];

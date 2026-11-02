@@ -232,6 +232,7 @@ export class GameData {
 
   public get pendingHatchResults():any[]{return this.profileIO?.profile.hatchResults??[];}
   public get hasReservedCoopEggs():boolean{const p=this.profileIO?.profile;return !!(p?.eggRun?.eggs.length||p?.deferredHatches.some(h=>h.state==='waiting-terminal'));}
+  public isCoopRunAbandoned(runId:string):boolean{return !!this.profileIO?.profile.grantLedger.some(g=>g.id==='coop-abandon:'+runId);}
   public deferredEggState(eggId:number):string|null{return this.profileIO?.profile.deferredHatches.find(h=>h.eggId===eggId)?.state??null;}
 
   /** Commit the fixed original result and rewards first. The retained v2

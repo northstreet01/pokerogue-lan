@@ -190,6 +190,17 @@ export class HomePhase extends Phase {
       view=new GameData(this.scene);
       view.bindProfileIO(await openGameProfileIO(profileRepository(()=>!this.disposed),index.activeProfileId,{mode:'home'}));
       await view.loadSystem({readOnly:true});
+      const hasResults=view.pendingHatchResults.length>0;
+      const choice=await new Promise<'continue'|'skip'|'home'>(resolve=>{
+        void this.menu(epoch,[
+          [hasResults?'继续播放孵化动画':'开始孵化',()=>resolve('continue')],
+          ...(hasResults?[[ '跳过动画并返回大厅',()=>resolve('skip')] as [string,()=>unknown]]:[]),
+          ['返回大厅',()=>resolve('home')],
+        ],hasResults?'孵化结果和奖励已经保存。请选择继续播放或跳过动画。':'有已完成的联机孵化结果，是否现在开始？');
+      });
+      if(choice==='skip'){await this.skipPendingHatchAnimations(view,epoch);return;}
+      if(choice==='home'){await this.showHome();return;}
+      if(!this.current(epoch))return;
       await this.display(epoch,Mode.MESSAGE,[],view);
       await this.playDeferredHatches(view,epoch);
       this.scene.playBgm?.('menu',false,this.music.signal);
@@ -197,8 +208,18 @@ export class HomePhase extends Phase {
     }catch(error){
       if(view&&this.scene.gameData!==view)await view.closeProfile().catch(()=>{});
       if(this.current(epoch))await this.menu(epoch,[['重试领取孵化结果',()=>this.finishEggHatches()],
-        ['返回大厅',()=>this.showHome()]],'孵化尚未完成保存，蛋和已生成结果会保留。');
+        ...(view?.pendingHatchResults.length?[[ '跳过动画并返回大厅',async()=>{
+          await this.skipPendingHatchAnimations(view!,epoch);
+        }] as [string,()=>unknown]]:[]),
+        ['返回大厅',()=>this.showHome()]],'孵化尚未完成；已经保存的结果与奖励会保留。');
     }
+  }
+
+  private async skipPendingHatchAnimations(view:GameData,epoch:number):Promise<void>{
+    if(!this.current(epoch))return;
+    const results=[...view.pendingHatchResults];
+    for(const result of results)await view.acknowledgeHatch(result.id);
+    if(this.current(epoch))await this.showHome();
   }
 
   private async playDeferredHatches(view:GameData,epoch:number):Promise<void>{
@@ -249,7 +270,20 @@ export class HomePhase extends Phase {
         .map(value=>({...value,hostId:host.hostId,endpoint:host.endpoint,legacy:false,scope:hostScope(location.origin,host.hostId,this.activeProfile)}))))).flat();
       const seats=[...legacy,...hosted].filter(value=>(value.profileId??null)===this.activeProfile);
       if (!this.current(epoch)) return;
-      if(!seats.length){await this.menu(epoch,[['没有可恢复席位，返回',()=>this.showHome()]]);return;}
+      if(!seats.length){await this.menu(epoch,[
+        ['没有可恢复席位，返回',()=>this.showHome()],
+        ...(this.activeProfile?[[ '放弃无法恢复的联机',()=>this.confirm(epoch,
+          '将仍占用蛋的联机按失败结算？\n保留已保存成果和蛋进度，释放孵化结果；该局不能再领取成果。',async()=>{
+            const io=await openGameProfileIO(this.repository(epoch),this.activeProfile,{mode:'home'});
+            try{
+              const p=io.profile;
+              const runs=new Set([...(p.eggRun?[p.eggRun.sourceRunId]:[]),
+                ...p.deferredHatches.filter(h=>h.state==='waiting-terminal').map(h=>h.sourceRunId)]);
+              for(const runId of runs)await io.abandonCoopRun(runId);
+            }finally{await io.close().catch(error=>{io.invalidate();throw error;});}
+            if(this.current(epoch))await this.showRecovery();
+          },()=>this.showRecovery())] as [string,()=>unknown]]:[]),
+      ]);return;}
       const pages=Math.ceil(seats.length/3),index=Math.max(0,Math.min(page,pages-1)),rows=seats.slice(index*3,index*3+3);
       await this.display(epoch,Mode.SAVE_SLOT,[SaveSlotUiMode.COOP,(cursor:number)=>{
         if(!this.current(epoch))return;
@@ -258,6 +292,24 @@ export class HomePhase extends Phase {
         void this.menu(epoch,[
           ['恢复联机',()=>this.navigate(`/coop-play.html?resumeRoom=${encodeURIComponent(value.roomId)}&resumeSeat=${value.seat}`
             +(value.hostId?`&host=${encodeURIComponent(value.endpoint)}&hostId=${encodeURIComponent(value.hostId)}`:this.scene.navigateApp?'&legacy=1':''))],
+          ['放弃本局（按失败结算）',()=>this.confirm(epoch,
+            '放弃本局并按失败结算？无需连接房主。\n保留已保存成果和蛋进度，释放孵化结果，删除本机续连记录；该局不能再领取成果。',async()=>{
+              if(this.activeProfile){
+                const io=await openGameProfileIO(this.repository(epoch),this.activeProfile,{mode:'home'});
+                try{
+                  const p=io.profile;
+                  const reserved=[...new Set([...(p.eggRun?[p.eggRun.sourceRunId]:[]),
+                    ...p.deferredHatches.filter(h=>h.state==='waiting-terminal').map(h=>h.sourceRunId)])];
+                  // Old seats may predate durable run IDs. Only infer a unique
+                  // reservation; never release a different known adventure.
+                  const runId=value.runId??(reserved.length===1?reserved[0]:null);
+                  if(!runId&&reserved.length)throw new Error('LOCAL_EGGS_RESERVED');
+                  if(runId)await io.abandonCoopRun(runId);
+                }finally{await io.close().catch(error=>{io.invalidate();throw error;});}
+              }
+              await storage.deleteSeat(value.scope,value.roomId,value.seat);
+              if(this.current(epoch))await this.showRecovery(index);
+            },()=>this.showRecovery(index))],
           ['删除本机续连记录',()=>this.confirm(epoch,'删除本机续连记录及未发送操作？\n不会删除房主存档、图鉴或其他玩家的记录。',async()=>{
             if(this.activeProfile){
               const profile=await this.repository(epoch).read(this.activeProfile);

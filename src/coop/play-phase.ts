@@ -13,7 +13,7 @@ import { createPlayStorage } from './play-storage.mjs';
 import { pauseAutoResume, autoResumePaused, allowAutoResume } from './exit-recovery.mjs';
 import { GameModes } from '../game-mode';
 import { Command } from '../ui/command-ui-handler';
-import { ModifierTypeOption, restoreModifierTypeState, captureModifierTypeState, TmModifierType } from '../modifier/modifier-type';
+import { ModifierTypeOption, restoreModifierTypeState, captureModifierTypeState, TmModifierType, PokemonHpRestoreModifierType } from '../modifier/modifier-type';
 import { PartyUiMode, PartyOption } from '../ui/party-ui-handler';
 import { getPokemonFormChangeItems } from '../data/pokemon-forms';
 import { getPokeballDisplayName as getPokeballName } from '../data/pokeball';
@@ -27,6 +27,7 @@ import {desktopHost,startDesktopHost} from '../desktop-host.mjs';
 import {renderTeams,renderInventory,progressText,roomPlayerName} from './room-display.mjs';
 import {captureRoomCatalog,roomSelectionData} from './room-catalog';
 import {beginLoading} from './loading-screen.mjs';
+import {recordCoopDiagnostic,exportCoopDiagnostics,flushCoopDiagnostics} from './diagnostics.mjs';
 
 const RULES_VERSION = 'early-vs02';
 const CONTENT_HASH = 'vs02-original-coop';
@@ -39,9 +40,12 @@ export default class CoopPlayPhase extends Phase {
   private roomLine!: HTMLDivElement;
   private presenceLine: HTMLDivElement | null = null;
   private controls!: HTMLDivElement;
+  private diagnosticButton: HTMLButtonElement | null = null;
   private roomCodeDraft = '';
   private reserveLine!: HTMLDivElement;
   private modifierLine: HTMLDivElement | null = null;
+  private enemyModifierLine: HTMLDivElement | null = null;
+  private pendingCreate = false;
   private releaseTeamParty: (() => void) | null = null;
   private teamMenuEpoch = 0;
   private socket: WebSocket | null = null;
@@ -108,7 +112,7 @@ export default class CoopPlayPhase extends Phase {
   private pauseTask: Promise<boolean> | null = null;
   private reconnectAttempts=0;
   private connectionMode: 'lan' | 'remote' = 'lan';
-  private discoveredHosts: {hostId:string;endpoint:string}[] = [];
+  private pendingLanJoin: string | null = null;
   private discovering = false;
   private discoveryGeneration = 0;
   private remoteAddress = '';
@@ -119,6 +123,7 @@ export default class CoopPlayPhase extends Phase {
 
   start() {
     super.start();
+    recordCoopDiagnostic('session-start',{desktop:!!desktopHost()});
     this.scene.playBgm?.('menu', false, this.lobbyMusic.signal);
     this.scene.enableTutorials = false; // Cooperative entry does not write solo tutorial flags.
     this.createOverlay();
@@ -141,9 +146,8 @@ export default class CoopPlayPhase extends Phase {
       const query=this.scene.appUrl?.searchParams??new URLSearchParams(location.search);
       if(desktopHost()&&!query.get('host')&&!query.get('resumeRoom')){
         this.remoteAddress=readHosts().selected??'';
-        this.setStatus('局域网：创建本机房主，或搜索并选择房主。异地连接请切换远程联机。');
+        this.setStatus('创建房间，或输入队友的房间码加入冒险。');
         this.renderLobbyControls();
-        void this.searchLanHosts();
       }else this.connect();
     }
   }
@@ -155,9 +159,11 @@ export default class CoopPlayPhase extends Phase {
 
   private stopSession() {
     if (this.disposed) return;
+    flushCoopDiagnostics();
     this.lobbyMusic.abort(); this.scene.fadeOutBgm?.(150, true);
     this.hostAbort.abort();
     this.discoveryGeneration++;
+    this.pendingLanJoin = null;
     this.disposed = true; this.lifecycle++;
     this.epoch = null; this.consumer = null;
     this.inputReady = false; this.battleInputActive = false; this.starterOpen = false;
@@ -168,7 +174,9 @@ export default class CoopPlayPhase extends Phase {
     const socket = this.socket; this.socket = null;
     // Cleanup cannot stop local exit if an already destroyed display throws.
     for (const clean of [() => socket?.close(), () => this.clearTeamParty(),
-      () => this.presentation?.clear(), () => this.overlay?.remove()]) {
+      () => this.presentation?.clear(), () => this.overlay?.remove(),
+      () => { this.diagnosticButton?.remove(); this.diagnosticButton=null;
+        document.getElementById('coop-exit-session')?.remove();document.getElementById('coop-reload-checkpoint')?.remove(); }]) {
       try { clean(); } catch { /* Navigation tears down the remaining original UI. */ }
     }
   }
@@ -208,7 +216,7 @@ export default class CoopPlayPhase extends Phase {
     this.overlay.id = 'coop-play-overlay';
     this.panel = document.createElement('div'); this.panel.className = 'panel';
     this.overlay.className='room-lobby';
-    const title = document.createElement('h1'); title.textContent = '联机冒险 · 等待房间';
+    const title = document.createElement('h1'); title.textContent = '联机冒险';
     this.status = document.createElement('div'); this.status.className = 'status'; this.status.textContent = '连接中…';
     this.budget = document.createElement('div'); this.budget.className = 'status';
     this.roomLine = document.createElement('div'); this.roomLine.className = 'status';
@@ -218,20 +226,31 @@ export default class CoopPlayPhase extends Phase {
     this.controls = document.createElement('div');this.controls.className='coop-room-controls';
     this.reserveLine = document.createElement('div'); this.reserveLine.className = 'status'; this.reserveLine.hidden = true;
     this.modifierLine = document.createElement('div'); this.modifierLine.className = 'coop-inventory'; this.modifierLine.hidden = true;
+    this.modifierLine.id='coop-own-items';
+    this.enemyModifierLine=document.createElement('div');this.enemyModifierLine.id='coop-enemy-items';this.enemyModifierLine.className='coop-inventory enemy';this.enemyModifierLine.hidden=true;
     this.panel.append(title, this.status, this.roomLine,this.presenceLine, this.budget, this.lobbySelections, this.progressLine, this.reserveLine, this.modifierLine, this.controls);
+    this.panel.insertBefore(this.enemyModifierLine,this.controls);
     // Keep this outside the decision controls: no sync/menu state may hide it.
-    const exit = this.button('退出本局／返回首页', () => this.leaveSession());
+    const exit = this.button('返回大厅', () => this.leaveSession());
     exit.id = 'coop-exit-session'; exit.type = 'button';
     exit.title = '仅本人离开，房间与已提交行动保留；服务器不可达时也可退出';
-    exit.setAttribute('aria-describedby', 'coop-exit-note');
     for (const type of ['keydown', 'keyup']) exit.addEventListener(type, event => event.stopPropagation());
-    const note = document.createElement('span'); note.id = 'coop-exit-note'; note.className = 'status';
-    note.textContent = '仅本人离开，房间保留';
-    this.panel.append(exit, note);
-    const recover = this.button('卡住脱离／重载存档', () => this.reloadCheckpoint());
+    const recover = this.button('重载存档', () => this.reloadCheckpoint());
     recover.id = 'coop-reload-checkpoint';
     recover.title = '房主在每个可操作节点自动保存；重载最近已保存状态，已提交行动保留，不回滚已完成购买';
-    this.panel.append(recover);
+    const toolbar=document.getElementById('desktopControls')??this.panel;
+    toolbar.querySelector('#coop-exit-session')?.remove();toolbar.querySelector('#coop-reload-checkpoint')?.remove();
+    toolbar.append(exit,recover);
+    const diagnostics=this.button('导出联机诊断',()=>{
+      const count=exportCoopDiagnostics();
+      this.setStatus(`已导出最近 ${count} 条本机诊断记录；可将 JSON 文件发给开发者。`);
+    });
+    diagnostics.id='coop-export-diagnostics';
+    diagnostics.title='导出最近联机状态、伤药操作提交与结算记录；不包含房间凭据或玩家名称';
+    this.diagnosticButton?.remove();this.diagnosticButton=diagnostics;
+    // The bottom application toolbar stays outside Phaser menus and the
+    // scrolling cooperative HUD, including while a decision is blocked.
+    (document.getElementById('desktopControls')??document.body).append(diagnostics);
     this.overlay.append(this.panel);
     document.body.append(this.overlay);
     this.renderLobbyControls();
@@ -241,6 +260,8 @@ export default class CoopPlayPhase extends Phase {
     if (this.disposed) return;
     this.status.textContent = text;
     this.status.className = error ? 'error' : 'status';
+    if(error)recordCoopDiagnostic('ui-error',{message:text.slice(0,240),decision:this.latest?.personal?.decision?.kind??null,
+      revision:this.latest?.revision??null});
   }
   private async reloadCheckpoint() {
     if (!this.roomId || this.seat === null || !this.token) {
@@ -265,6 +286,8 @@ export default class CoopPlayPhase extends Phase {
   }
   private renderLobbyControls() {
     if (this.disposed) return;
+    const reload=document.getElementById('coop-reload-checkpoint') as HTMLButtonElement|null;
+    if(reload)reload.disabled=!this.roomId||this.seat===null||!this.token;
     const previous = this.controls.querySelector<HTMLInputElement>('#coop-room-code');
     const focused = previous === document.activeElement;
     const caret = focused ? previous?.selectionStart : null;
@@ -318,14 +341,16 @@ export default class CoopPlayPhase extends Phase {
     const modes=document.createElement('div');modes.className='row';
     for(const [mode,label] of [['lan','局域网联机'],['remote','远程联机']] as const){
       const button=this.button(label,()=>{
+        this.discoveryGeneration++;this.discovering=false;this.pendingLanJoin=null;
         this.connectionMode=mode;this.manualLanAddress=false;this.renderLobbyControls();
-        this.setStatus(mode==='lan'?'同一局域网内选择搜索到的房主；房间码用于加入该房主上的房间。':'填写房主IP或域名；异地连通由双方自行配置，游戏不提供中继。');
-        if(mode==='lan')void this.searchLanHosts();
+        this.setStatus(mode==='lan'?'输入房间码即可自动搜索并加入，无需查询房主IP。':'填写房主IP或域名；异地连通由双方自行配置，游戏不提供中继。');
       },true);
       button.setAttribute('aria-pressed',String(this.connectionMode===mode));modes.append(button);
     }
     this.controls.append(modes);
     if(desktopHost()){
+      const advanced=document.createElement('details');advanced.className='connection-options';
+      const summary=document.createElement('summary');summary.textContent='连接设置';advanced.append(summary);
       const local=document.createElement('div');local.className='row';
       const port=document.createElement('input');port.type='number';port.min='1024';port.max='65535';port.value=this.localHostPort;
       port.addEventListener('input',()=>{this.localHostPort=port.value;});
@@ -336,24 +361,17 @@ export default class CoopPlayPhase extends Phase {
         if(!this.current(lifecycle))return;
         this.hostId=host.hostId;await this.connect(host.endpoint);
         if(!this.disposed)this.setStatus(this.connectionMode==='lan'
-          ?'房主已启动，请创建房间。队友在局域网搜索中选中本机，再输入房间码。'+(host.discovery===false?'自动发现不可用，请使用手动连接。':'')
+          ?'房主已启动，请创建房间。队友输入房间码即可自动搜索加入。'+(host.discovery===false?'自动发现不可用，请使用手动连接。':'')
           :'房主已启动，请创建房间。远程队友连接你提供的IP或映射地址；游戏端口 '+host.port+'。');
       },true));
-      this.controls.append(local);
+      advanced.append(local);this.controls.append(advanced);
     }
     if(this.connectionMode==='lan'){
       const scan=document.createElement('div');scan.className='row';
-      const refresh=this.button(this.discovering?'正在搜索…':'刷新局域网房主',()=>this.searchLanHosts(),true);
-      refresh.disabled=this.discovering||!desktopHost()?.discoverHosts;scan.append(refresh);
       const hint=document.createElement('span');
       hint.textContent=!desktopHost()?.discoverHosts?'自动发现需要桌面程序，可使用手动连接。'
-        :this.discoveredHosts.length?'选择房主后创建或加入房间。':'未发现房主。请让房主先启动服务，再刷新；网络隔离时可手动连接。';
+        :this.discovering?'正在局域网中查找房间…':'输入队友提供的房间码，自动搜索并加入。';
       scan.append(hint);this.controls.append(scan);
-      for(const host of this.discoveredHosts){
-        this.controls.append(this.button('连接房主 · '+host.endpoint.replace('http://',''),async()=>{
-          this.hostId=host.hostId;await this.connect(host.endpoint);
-        },true));
-      }
       this.controls.append(this.button(this.manualLanAddress?'收起手动连接':'未找到？手动连接',()=>{
         this.manualLanAddress=!this.manualLanAddress;this.renderLobbyControls();
       }));
@@ -369,9 +387,9 @@ export default class CoopPlayPhase extends Phase {
     }
     if(this.versions){
       const connected=document.createElement('div');connected.className='status';
-      connected.textContent='当前房主：'+this.endpoint;this.controls.append(connected);
+      connected.textContent=this.connectionMode==='lan'?'已连接房主，可创建或加入房间。':'当前房主：'+this.endpoint;this.controls.append(connected);
     }
-    const row = document.createElement('div'); row.className = 'row';
+    const row = document.createElement('div'); row.className = 'row room-join';
     const input = document.createElement('input'); input.placeholder = '6位房间码';
     input.style.width = '12em'; input.id = 'coop-room-code';
     input.setAttribute('aria-label', '6位房间码');
@@ -387,23 +405,30 @@ export default class CoopPlayPhase extends Phase {
     input.addEventListener('input', update);
     for (const name of ['keydown', 'keypress', 'keyup']) input.addEventListener(name, event => event.stopPropagation());
     const join=this.button('加入房间', () => this.joinRoom(input.value.trim().toUpperCase())),create=this.button('创建房间', () => this.createRoom(), true);
-    join.disabled=create.disabled=!this.versions||this.joining;
+    join.disabled=this.joining||this.discovering||(!this.versions&&!(this.connectionMode==='lan'&&!this.manualLanAddress&&desktopHost()?.discoverHosts));
+    create.disabled=(!this.versions&&!desktopHost())||this.joining||this.discovering||this.pendingCreate;
     row.append(input,count,join,create);
     this.controls.append(row);
     if (focused) { input.focus(); if (caret !== null) input.setSelectionRange(caret, caret); }
   }
 
-  private async searchLanHosts(){
+  private async searchLanRoom(roomId:string){
     const bridge=desktopHost();if(this.discovering||!bridge?.discoverHosts||this.disposed)return;
     const generation=++this.discoveryGeneration;
     this.discovering=true;this.renderLobbyControls();
     try{
-      const reply=await bridge.discoverHosts();
+      const reply=await bridge.discoverHosts(roomId);
       if(this.disposed||generation!==this.discoveryGeneration)return;
       if(!reply?.ok)throw Error(reply?.code??'LAN_DISCOVERY_FAILED');
-      this.discoveredHosts=reply.value;
+      if(reply.value.length!==1){
+        this.manualLanAddress=true;
+        this.setStatus(reply.value.length?'找到多个同号房间，请手动填写房主地址加入。':'未找到该房间，请确认房间码和网络，或手动填写房主地址。',true);
+        return;
+      }
+      const host=reply.value[0];this.hostId=host.hostId;this.pendingLanJoin=roomId;
+      await this.connect(host.endpoint);
     }catch(error){
-      if(!this.disposed&&generation===this.discoveryGeneration)this.setStatus('局域网搜索失败，可刷新或手动连接房主。',true);
+      if(!this.disposed&&generation===this.discoveryGeneration){this.pendingLanJoin=null;this.manualLanAddress=true;this.setStatus('未找到可连接的房间，可重试或手动填写房主地址。',true);}
     }finally{
       if(!this.disposed&&generation===this.discoveryGeneration){this.discovering=false;this.renderLobbyControls();}
     }
@@ -420,7 +445,7 @@ export default class CoopPlayPhase extends Phase {
     this.setStatus('正在核对房主地址…');
     let host:any;
     try{host=await this.identifyEndpoint(selected,this.hostId??query.get('hostId'));}
-    catch(error){if(this.current(lifecycle)){this.setStatus(hostConnectionError(error)??'无法连接房主，请检查地址与服务；个人档案仍保留在本机。',true);this.scheduleReconnect();}return;}
+    catch(error){if(this.current(lifecycle)){this.pendingCreate=false;this.renderLobbyControls();this.setStatus(hostConnectionError(error)??'无法连接房主，请检查地址与服务；个人档案仍保留在本机。',true);this.scheduleReconnect();}return;}
     if(!this.current(lifecycle))return;
     this.endpoint=host.endpoint;this.hostId=host.hostId;
     this.origin=host.hostId?hostScope(location.origin,host.hostId,this.scene.gameData?.localProfileId):location.origin;
@@ -431,6 +456,7 @@ export default class CoopPlayPhase extends Phase {
     this.socket = socket;
     socket.addEventListener('open', async () => {
       if (!current()) return;
+      recordCoopDiagnostic('socket-open',{hostVerified:!!this.hostId});
       this.reconnectAttempts=0;
       this.setStatus('已连接，恢复席位…');
       this.send({ type: 'hello', protocolVersion: PROTOCOL_VERSION, checkpointVersion: CHECKPOINT_VERSION,
@@ -444,6 +470,8 @@ export default class CoopPlayPhase extends Phase {
     });
     socket.addEventListener('close', () => {
       if (!current()) return;
+      recordCoopDiagnostic('socket-closed',{decision:this.latest?.personal?.decision?.kind??null,
+        revision:this.latest?.revision??null,actionPending:!!this.actionId});
       this.lifecycle++;
       this.joining = false;
       this.setStatus('连接已断开，正在重新连接…', true);
@@ -489,7 +517,12 @@ export default class CoopPlayPhase extends Phase {
           this.renderLobbyControls();
           this.setStatus('已加入房间，等待快照…');
         }
-        if (!message.roomId) await this.tryResume();
+        if (!message.roomId && this.pendingCreate) {
+          this.pendingCreate=false;await this.createRoom();
+        } else if (!message.roomId && this.pendingLanJoin) {
+          const roomId=this.pendingLanJoin;this.pendingLanJoin=null;
+          await this.joinConnectedRoom(roomId);
+        } else if (!message.roomId) await this.tryResume();
         return;
       }
       if(message.type==='roomPresence'){
@@ -500,6 +533,7 @@ export default class CoopPlayPhase extends Phase {
         }return;
       }
       if (message.type === 'error') {
+        recordCoopDiagnostic('server-error',{code:String(message.code??'UNKNOWN').slice(0,80)});
         this.joining = false;
         if (this.resuming) {
           this.roomId = null; this.seat = null; this.token = null; this.resuming = false;
@@ -515,6 +549,9 @@ export default class CoopPlayPhase extends Phase {
           if(this.progressLine)this.progressLine.textContent=progressText(message,this.latest,this.seat,(key,values)=>i18next.t('coop:'+key,values),this.playerNames);
           this.inputReady = !message.blocked;
           this.submitted = !!message.submitted?.[this.seat!];
+          recordCoopDiagnostic('sync-status',{reason:message.reason??null,blocked:!!message.blocked,
+            submitted:this.submitted,inputReady:this.inputReady,decision:this.latest.personal.decision.kind,
+            revision:this.latest.revision,decisionId:this.latest.decisionId});
           if ((this.submitted || !this.inputReady) && !(this.latest.personal.decision.kind === 'preparation'
             && this.preparationCarryRevision === message.revision && message.reason === 'WAITING_ACK')) {
             this.clearPreparationParty();
@@ -522,7 +559,9 @@ export default class CoopPlayPhase extends Phase {
             this.battleInputActive = false;
             this.preparationSignature = ''; this.switchSignature = '';
             if (this.latest.personal.decision.kind !== 'lobby') await this.scene.ui.setMode(Mode.MESSAGE);
-          } else await this.openDecisionInput();
+          // A peer submitting an attack only updates readiness. Preserve our
+          // active Command/Fight/Ball/target menu until we submit or sync blocks.
+          } else if (!this.battleInputActive) await this.openDecisionInput();
           if (!current()) return;
           if (['RUNNER_FAILED', 'STORAGE_FAILED', 'RECOVERY_PENDING'].includes(message.reason)) {
             this.setStatus(message.reason === 'RECOVERY_PENDING'
@@ -552,6 +591,9 @@ export default class CoopPlayPhase extends Phase {
         if (!current()) return;
         if (message.actionId !== this.actionId) return;
         const action = this.pendingAction?.action;
+        recordCoopDiagnostic('action-receipt',{kind:action?.kind??null,operation:action?.operation??null,
+          accepted:!!message.accepted,code:message.code??null,revision:message.revision??null,
+          decisionId:message.decisionId??null});
         const submittedRevision = this.pendingAction?.expectedRevision;
         this.actionId = null; this.pendingAction = null;
         this.preparationSignature = ''; this.switchSignature = '';
@@ -574,6 +616,7 @@ export default class CoopPlayPhase extends Phase {
         }
         if (!message.accepted && ['STALE_DECISION', 'SYNC_BLOCKED', 'SHARED_ITEM_UNAVAILABLE'].includes(message.code)) {
           this.clearTeamParty(); this.submitted = false; this.preparationSignature = '';
+          this.battleInputActive = false;
           this.setStatus(message.code === 'SHARED_ITEM_UNAVAILABLE' ? '该道具已被队友领取，请重新选择' : '房间已更新，正在恢复可用菜单…', true);
           this.send({ type: 'requestSnapshot', roomId: this.roomId, runId: this.runId,
             knownRevision: this.latest?.revision ?? 0, reason: 'USER_RETRY' });
@@ -615,6 +658,7 @@ export default class CoopPlayPhase extends Phase {
             adapter: {
               applySnapshot: async (snapshot: any) => {
                 if (!current()) return;
+                if(this.scene.gameData.isCoopRunAbandoned?.(snapshot.runId))throw new Error('本局已放弃并按失败结算，请返回大厅开始新的联机。');
                 this.model.applySnapshot(snapshot);
                 if (snapshot.personal.decision.kind !== 'lobby') await this.enterBattle(snapshot);
               },
@@ -653,6 +697,12 @@ export default class CoopPlayPhase extends Phase {
           && previous.sharedHash === message.sharedHash && previous.personalHash === message.personalHash;
         this.runId = message.runId;
         this.latest = duplicate ? previous : message;
+        const party=(message.personal?.party??[]).slice(0,6).map((entry:any)=>({speciesId:entry.pokemon?.species?.speciesId??null,
+          hp:entry.pokemon?.hp??null,maxHp:entry.pokemon?.stats?.[0]??null,
+          status:entry.pokemon?.status?.effect??null}));
+        recordCoopDiagnostic('snapshot',{revision:message.revision,decisionId:message.decisionId,
+          decision:message.personal?.decision?.kind??null,turn:message.shared?.turn??null,wave:message.shared?.waveIndex??null,
+          duplicate,party});
         this.draftResync = false;
         this.inputReady = false;
         await this.persistSeat();
@@ -663,6 +713,9 @@ export default class CoopPlayPhase extends Phase {
       }
     } catch (error: any) {
       if (current()) {
+        recordCoopDiagnostic('message-processing-error',{type:message?.type??null,
+          code:String(error?.code??error?.message??error).slice(0,180),revision:this.latest?.revision??null,
+          decision:this.latest?.personal?.decision?.kind??null});
         this.setStatus(`同步失败：${error?.message ?? error}`, true);
         if(this.grantSaveFailed){if(this.overlay)this.overlay.hidden=false;this.renderLobbyControls();}
       }
@@ -962,6 +1015,11 @@ export default class CoopPlayPhase extends Phase {
   private async choosePreparationReward(option: any, snapshot: any, epoch: string | null, operation = 'reward') {
     if (!this.isPersonalInputCurrent(snapshot, epoch)) return;
     const type: any = restoreModifierTypeState(option.type);
+    if(type instanceof PokemonHpRestoreModifierType)recordCoopDiagnostic('healing-item-selected',{
+      operation,optionId:String(option.id??'').slice(0,64),item:type.constructor?.name??null,
+      revision:snapshot.revision,decisionId:snapshot.decisionId,decision:snapshot.personal.decision.kind,
+      party:(this.model.applied?.personal?.party??[]).slice(0,6).map((entry:any)=>({speciesId:entry.pokemon.species.speciesId,
+        hp:entry.pokemon.hp,maxHp:entry.pokemon.stats?.[0]??null}))});
     const action = { kind: 'preparation', operation, optionId: option.id,
       pokemonId: null, moveIndex: null, fusionId: null };
     const targetKind = preparationItemTarget(type);
@@ -1516,6 +1574,8 @@ export default class CoopPlayPhase extends Phase {
         battlesLeft:modifier.battlesLeft};
     });
     renderInventory(this.modifierLine,this.scene,items,(key,values)=>i18next.t('coop:'+key,values));
+    if(this.enemyModifierLine)renderInventory(this.enemyModifierLine,this.scene,this.model.applied?.shared?.enemyItems??[],
+      (key,values)=>i18next.t('coop:'+key,values),'敌方道具');
   }
 
   private openBattleCommand() {
@@ -1581,6 +1641,9 @@ export default class CoopPlayPhase extends Phase {
       : autoResumePaused() ? null : await this.storage.beginSession(this.origin, this.session(lifecycle, recovery), true);
     if (!this.current(lifecycle) || recovery !== this.recoveryVersion) return;
     if (value?.roomId && value?.token) {
+      if(value.runId&&this.scene.gameData.isCoopRunAbandoned?.(value.runId)){
+        this.setStatus('本局已放弃并按失败结算，请返回大厅开始新的联机。',true);return;
+      }
       if ((value.profileId??null)!==(this.scene.gameData?.localProfileId??null)) {
         this.setStatus(i18next.t('localMeta:profileChanged'),true);return;
       }
@@ -1599,11 +1662,26 @@ export default class CoopPlayPhase extends Phase {
   }
 
   private async createRoom() {
+    if(!this.versions&&desktopHost()){
+      if(this.pendingCreate)return;this.pendingCreate=true;this.renderLobbyControls();
+      try{
+        const host=await startDesktopHost(Number(this.localHostPort));
+        if(this.disposed)return;this.hostId=host.hostId;
+        await this.connect(host.endpoint);
+      }catch(error){this.pendingCreate=false;this.renderLobbyControls();throw error;}
+      return;
+    }
     if (!await this.activateSession()) return;
     this.send({ type: 'createRoom', name: this.scene.gameData?.localProfileName?.slice(0,24)??'本地训练家' });
   }
   private async joinRoom(roomId: string) {
-    if (roomId.length !== 6) { this.setStatus('请输入 6 位房间码', true); return; }
+    if (!/^[A-F0-9]{6}$/.test(roomId)) { this.setStatus('请输入 6 位房间码', true); return; }
+    if(this.connectionMode==='lan'&&!this.manualLanAddress&&desktopHost()?.discoverHosts){
+      await this.searchLanRoom(roomId);return;
+    }
+    await this.joinConnectedRoom(roomId);
+  }
+  private async joinConnectedRoom(roomId:string){
     if (!await this.activateSession()) return;
     this.send({ type: 'joinRoom', roomId, name: this.scene.gameData?.localProfileName?.slice(0,24)??'本地训练家' });
   }
@@ -1769,12 +1847,20 @@ export default class CoopPlayPhase extends Phase {
     const actionId = crypto.randomUUID();
     const message = { type: 'submitAction', roomId: this.roomId, runId: this.latest.runId,
       decisionId: this.latest.decisionId, expectedRevision: this.latest.revision, actionId, action };
+    recordCoopDiagnostic(action.kind==='preparation'&&['reward','buy'].includes(action.operation)?'preparation-item-submit':'action-submit',{
+      kind:action.kind,operation:action.operation??null,targetSpeciesId:action.pokemonId
+        ?this.model.applied?.personal?.party?.find((entry:any)=>entry.id===action.pokemonId)?.pokemon?.species?.speciesId??null:null,
+      revision:message.expectedRevision,decisionId:message.decisionId,decision:this.latest.personal.decision.kind,
+      inputReady:this.inputReady,party:(this.model.applied?.personal?.party??[]).slice(0,6).map((entry:any)=>({
+        speciesId:entry.pokemon.species.speciesId,hp:entry.pokemon.hp,maxHp:entry.pokemon.stats?.[0]??null}))});
     this.actionId = actionId;
     this.pendingAction = message;
     let persisted = false;
     try {
       await this.storage.saveAction(this.origin, this.seat, message);
       persisted = true;
+      recordCoopDiagnostic('action-persisted',{kind:action.kind,operation:action.operation??null,
+        revision:message.expectedRevision,decisionId:message.decisionId});
       if (!this.current(lifecycle)) return false;
       // A disk write can outlast a peer's lobby edit. This envelope has never
       // been sent; discard it and regenerate from the next verified snapshot.
@@ -1789,8 +1875,12 @@ export default class CoopPlayPhase extends Phase {
         return true;
       }
       this.send(message);
+      recordCoopDiagnostic('action-sent',{kind:action.kind,operation:action.operation??null,
+        revision:message.expectedRevision,decisionId:message.decisionId});
       this.setStatus(submittedText);
     } catch (error: any) {
+      recordCoopDiagnostic('action-send-failed',{kind:action.kind,operation:action.operation??null,
+        code:String(error?.code??error?.message??error).slice(0,180),persisted});
       if (!this.current(lifecycle)) return false;
       if (!persisted) { this.actionId = null; this.pendingAction = null; }
       this.setStatus(`提交失败，选择已保留：${error?.message ?? error}`, true);

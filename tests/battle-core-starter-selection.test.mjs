@@ -41,6 +41,14 @@ before(async () => {
   api.describeOriginalCatalogs();
 });
 
+test('Smeargle preserves all four original Sketch slots through selection and construction',async t=>{
+  const selection=base(235,149n,{moveset:[166,166,166,166]});
+  assert.deepEqual(api.validateStarterSelection(selection).moveset,selection.moveset);
+  const h=await host(t);
+  const result=await h.request('construct-starter',selection);
+  assert.deepEqual(result.pokemon.fields.moveset.map(move=>move.fields.moveId),selection.moveset);
+});
+
 test('capture/restore copies actual Starter and explicit owner IV/egg-move records through JSON', () => {
   const dto = base(1, 149n, { nature: 12, moveset: [33], pokerus: true, eggMoves: 1 });
   const starter = originalStarter(dto), ivs = [...dto.ivs];
@@ -118,7 +126,6 @@ test('malformed JSON selections fail with exact codes without consuming RNG, the
     ['INVALID_STARTER_IVS', { ...good, ivs: [1, 2, 3, 4, 5, 32] }],
     ['INVALID_STARTER_MOVESET', { ...good, moveset: [] }],
     ['INVALID_STARTER_MOVESET', { ...good, moveset: [33, 45, 22, 10, 9] }],
-    ['INVALID_STARTER_MOVESET', { ...good, moveset: [33, 33] }],
     ['INVALID_STARTER_MOVESET', { ...good, moveset: [999999] }],
     ['INVALID_STARTER_MOVESET', { ...good, moveset: [0] }],
     ['INVALID_STARTER_POKERUS', { ...good, pokerus: 1 }],

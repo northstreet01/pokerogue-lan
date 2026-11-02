@@ -307,3 +307,37 @@ test('deleting recovery cannot strand bound eggs, while an unrelated run can sti
   assert.deepEqual((await store.listSeats(origin)).map(s=>s.roomId),['BOUND1']);
   assert.equal((await store.resumeSession(origin,{id:'resume-bound',isCurrent:()=>true},'BOUND1',0)).token,'reserved-token');
 });
+
+for(const legacy of [false,true])
+test(`home abandons an offline ${legacy?'legacy':'bound'} adventure and retries a failed write before deleting its seat`,async t=>{
+  const {p,modes}=home(t);await settle(p);
+  p.activeProfile='egg-profile';p.profileName='小智';
+  let saved={revision:0,grantLedger:[],eggRun:{sourceRunId:'egg-run',eggs:[{id:123,timestamp:1}]},
+    deferredHatches:[{sourceRunId:'egg-run',eggId:123,eggTimestamp:1,state:'waiting-terminal',terminal:null}]};
+  let fail=true;
+  p.repository=()=>({read:async()=>structuredClone(saved),acquire:async()=>({}),release:async()=>{},
+    save:async(_pid,revision,_lease,mutation)=>{
+      assert.equal(revision,saved.revision);
+      if(fail)throw Error('disk failed');
+      saved={...mutation(structuredClone(saved)),revision:revision+1};return saved;
+    }});
+  const store=createPlayStorage(),origin=location.origin;
+  await store.saveSeat(origin,{roomId:'BOUND1',seat:0,...(legacy?{}:{runId:'egg-run'}),profileId:'egg-profile',token:'reserved-token'});
+  const abandon=async()=>{
+    await p.showRecovery();await settle(p);modes.at(-1)[2](0);await settle(p);
+    modes.at(-1)[1].options.find(o=>o.label==='放弃本局（按失败结算）').handler();await settle(p);
+    modes.at(-1)[1]();await settle(p);
+  };
+  await abandon();assert.equal((await store.listSeats(origin)).length,1);assert.ok(saved.eggRun);
+  fail=false;await abandon();
+  assert.equal((await store.listSeats(origin)).length,0);assert.equal(saved.eggRun,null);
+  assert.deepEqual(saved.deferredHatches[0].terminal,{result:'defeat',receiptId:'coop-abandon:egg-run'});
+  // Credentials can already be missing while a profile still owns eggs.
+  saved.eggRun={sourceRunId:'orphan-run',eggs:[{id:124,timestamp:2}]};
+  saved.deferredHatches.push({sourceRunId:'orphan-run',eggId:124,eggTimestamp:2,state:'waiting-terminal',terminal:null});
+  await p.showRecovery();await settle(p);
+  modes.at(-1)[1].options.find(o=>o.label==='放弃无法恢复的联机').handler();await settle(p);
+  modes.at(-1)[1]();await settle(p);
+  assert.equal(saved.eggRun,null);
+  assert.deepEqual(saved.deferredHatches[1].terminal,{result:'defeat',receiptId:'coop-abandon:orphan-run'});
+});

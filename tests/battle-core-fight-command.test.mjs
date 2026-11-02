@@ -31,9 +31,15 @@ function run(Phase,cursor,args,usable,targetSet){
 test('actual player FIGHT branch preserves original selection, Struggle, overrides and target prompts',()=>{
   const sets=[{targets:[],multiple:false},{targets:[2],multiple:false},{targets:[2,3],multiple:false},{targets:[2,3],multiple:true}];
   for(const cursor of [-1,0,1,2])for(const usable of [[true,true],[false,true],[true,false],[false,false]])for(const targets of sets)
-    for(const args of [[],[false],[true],[false,{targets:[0],multiple:false}],[false,null,{targets:[0],multiple:false}]]) {
+    for(const args of [[],[false],[true],[false,null,{targets:[0],multiple:false}]]) {
       assert.deepEqual(run(Current,cursor,args,usable,targets),run(Original,cursor,args,usable,targets));
     }
+});
+test('queued charge and frenzy commands keep the saved target without reopening selection',()=>{
+  const result=run(Current,0,[true,{targets:[3],multiple:false}],[true,true],{targets:[2,3],multiple:false});
+  assert.deepEqual(result.commands[1].move.targets,[3]);
+  assert.equal(result.commands[1].move.ignorePP,true);
+  assert.ok(!result.trace.some(row=>row[0]==='targetPhase'));
 });
 test('network fight intent rejects forged internal flags, wrong instance, cursor and target without consuming PP',()=>{
   const pokemon=originalPokemon();pokemon.summonData.moveQueue=[];pokemon.summonData.disabledMove=0;

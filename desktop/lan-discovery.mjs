@@ -12,15 +12,17 @@ function bind(socket,port){return new Promise((resolve,reject)=>{
   socket.once('error',reject);socket.bind(port,'0.0.0.0',()=>{socket.off('error',reject);resolve();});
 });}
 function close(socket){try{socket.close();}catch{}}
-export async function startDiscoveryResponder({hostId,port,discoveryPort=DISCOVERY_PORT}){
+export async function startDiscoveryResponder({hostId,port,discoveryPort=DISCOVERY_PORT,hasRoom=()=>false}){
   const socket=dgram.createSocket({type:'udp4',reuseAddr:true}),recent=new Map();
   socket.on('error',()=>{});
   socket.on('message',(bytes,peer)=>{
     const query=packet(bytes);
     if(query?.format!==format||query.version!==1||query.kind!=='query'||!noncePattern.test(query.nonce))return;
+    if(query.roomId!==undefined&&(!/^[A-F0-9]{6}$/.test(query.roomId)||!hasRoom(query.roomId)))return;
     const now=Date.now();if(now-(recent.get(peer.address)??0)<100)return;
     if(recent.size>=64)recent.clear();recent.set(peer.address,now);
-    const reply=Buffer.from(JSON.stringify({format,version:1,kind:'host',nonce:query.nonce,hostId,port}));
+    const reply=Buffer.from(JSON.stringify({format,version:1,kind:'host',nonce:query.nonce,hostId,port,
+      ...(query.roomId?{roomId:query.roomId}:{})}));
     socket.send(reply,peer.port,peer.address,()=>{});
   });
   try{await bind(socket,discoveryPort);}catch(error){close(socket);throw error;}
@@ -35,22 +37,25 @@ function broadcastTargets(){
   }
   return [...targets];
 }
-export async function discoverLanHosts({duration=1500,discoveryPort=DISCOVERY_PORT,targets=broadcastTargets()}={}){
+export async function discoverLanHosts({duration=1500,discoveryPort=DISCOVERY_PORT,targets=broadcastTargets(),roomId}={}){
+  if(roomId!==undefined&&!/^[A-F0-9]{6}$/.test(roomId))throw Error('INVALID_ROOM_CODE');
   const socket=dgram.createSocket('udp4'),nonce=randomBytes(16).toString('hex'),found=new Map();
   socket.on('error',()=>{});
   socket.on('message',(bytes,peer)=>{
     const reply=packet(bytes);
     if(reply?.format!==format||reply.version!==1||reply.kind!=='host'||reply.nonce!==nonce
       ||!id.test(reply.hostId)||!Number.isInteger(reply.port)||reply.port<1024||reply.port>65535||found.size>=64)return;
+    if(roomId!==undefined&&reply.roomId!==roomId)return;
     // Never trust an advertised URL: use the datagram source and bounded port.
     const endpoint=`http://${peer.address}:${reply.port}`;
     found.set(endpoint,{hostId:reply.hostId,endpoint});
   });
   try{
     await bind(socket,0);socket.setBroadcast(true);
-    const query=Buffer.from(JSON.stringify({format,version:1,kind:'query',nonce}));
+    const query=Buffer.from(JSON.stringify({format,version:1,kind:'query',nonce,...(roomId?{roomId}:{})}));
     for(const target of targets)socket.send(query,discoveryPort,target,()=>{});
     await new Promise(resolve=>setTimeout(resolve,duration));
-    return [...found.values()].sort((a,b)=>a.endpoint.localeCompare(b.endpoint));
+    // One host may answer through multiple network interfaces.
+    return [...new Map([...found.values()].map(host=>[host.hostId,host])).values()].sort((a,b)=>a.endpoint.localeCompare(b.endpoint));
   }finally{close(socket);}
 }

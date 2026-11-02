@@ -50,6 +50,13 @@ test('inventory uses original atlas frame, supports click and keyboard descripti
   assert.equal(button.dataset.dismissed,'true');button.click();assert.equal(button.dataset.dismissed,undefined);
   renderInventory(target,scene,[],t);assert.equal(target.hidden,true);assert.equal(target.children.length,0);
 });
+test('enemy and own inventory tooltips have separate identities and labels',()=>{
+ const {target,t}=setup();target.id='own';const enemy=document.createElement('div');enemy.id='enemy';
+ const item={name:'剩饭',description:'回合结束恢复HP',icon:'leftovers',count:1,owner:'野生精灵'};
+ renderInventory(target,{},[item],t);renderInventory(enemy,{},[item],t,'敌方道具');
+ assert.equal(enemy.querySelector('.coop-inventory-label').textContent,'敌方道具');
+ assert.notEqual(target.querySelector('[role=tooltip]').id,enemy.querySelector('[role=tooltip]').id);
+});
 test('peer status distinguishes loading, disconnect, submitted actions and finished shared preparation in both languages',()=>{
   for(const language of ['zh-Hans','en']){
     const {t}=setup(language),s={personal:{decision:{kind:'wait-actions',requiredSeats:[0,1]}}};

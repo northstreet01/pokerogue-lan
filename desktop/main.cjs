@@ -59,9 +59,11 @@ else {
     });
     ipcMain.handle('desktop:host-state',event=>{trusted(event);return result(()=>hosts.state());});
     let discoveryTask=null;
-    ipcMain.handle('desktop:host-discover',event=>{trusted(event);return result(()=>{
+    ipcMain.handle('desktop:host-discover',(event,roomId)=>{trusted(event);return result(()=>{
+      if(roomId!==undefined&&(typeof roomId!=='string'||!/^[A-F0-9]{6}$/.test(roomId)))throw Error('INVALID_ROOM_CODE');
       // A fixed, bounded scan; the renderer cannot request arbitrary UDP traffic.
-      return discoveryTask??=(runtime.discoverLanHosts().finally(()=>{discoveryTask=null;}));
+      if(discoveryTask)throw Error('LAN_DISCOVERY_BUSY');
+      return discoveryTask=runtime.discoverLanHosts({roomId}).finally(()=>{discoveryTask=null;});
     });});
     ipcMain.handle('desktop:host-start',(event,options)=>{
       trusted(event);

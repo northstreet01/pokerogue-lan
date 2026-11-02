@@ -52,6 +52,7 @@ export async function openGameProfileIO(repository, profileId, {mode='solo',read
     const work=queue.then(async()=>{
       const current=()=>{assertAlive();check(binding.isCurrent(),'COOP_BINDING_EXPIRED');};
       current();
+      check(!profile.grantLedger.some(g=>g.id==='coop-abandon:'+binding.runId),'LOCAL_COOP_RUN_ABANDONED');
       const pending=[],seen=new Set();
       for(const grant of requested) {
         exact(grant,['id','seat','payload']);
@@ -104,6 +105,23 @@ export async function openGameProfileIO(repository, profileId, {mode='solo',read
   return Object.freeze({profileId,mode,
     get displayName(){return profile.displayName;},get profile(){return json(profile);},
     applyCoopGrants,
+    // A local defeat is final even when the host is offline. Commit the
+    // terminal receipt before removing credentials in the separate seat store.
+    async abandonCoopRun(runId) {
+      check(mode==='home'&&id(runId),'INVALID_COOP_ABANDON');
+      const key='coop-abandon:'+runId;
+      const payloadHash=await digest({profileId,runId,result:'defeat'});
+      return enqueue(p=>{
+        if(p.grantLedger.some(g=>g.id===key))return p;
+        p.grantLedger.push({id:key,sourceRunId:runId,ownerProfileId:profileId,
+          kind:'completion',payloadHash,revision:p.revision+1});
+        if(p.eggRun?.sourceRunId===runId)p.eggRun=null;
+        for(const hatch of p.deferredHatches)if(hatch.sourceRunId===runId&&hatch.state==='waiting-terminal'){
+          hatch.state='released';hatch.terminal={result:'defeat',receiptId:key};
+        }
+        return p;
+      });
+    },
     // Whole System + egg receipt are one lease/CAS transaction. Retrying a
     // failed write uses the same staged result; no RNG runs inside storage.
     async commitEggOperation(operationId,expected,nextSystem,{deferredHatches,hatchResults,kind='voucher'}={}) {
