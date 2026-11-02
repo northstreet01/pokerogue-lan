@@ -11,6 +11,8 @@ import {createAppNavigation,closeAppScene,bindAppNavigationControls} from './app
 import {beginLoading} from './coop/loading-screen.mjs';
 import './coop/play.css';
 import {Mode} from './ui/ui';
+import {installDiagnostics,recordDiagnostic} from './diagnostics.mjs';
+import {coopDiagnosticSnapshot} from './coop/diagnostics.mjs';
 
 const initialScene=new BattleScene();
 initialScene.appUrl=new URL(location.href);
@@ -81,6 +83,12 @@ document.fonts.load('16px emerald').then(() => document.fonts.load('10px pkmnems
 
 const game = new Phaser.Game(config);
 let desktopScene=initialScene;
+const releaseDiagnostics=installDiagnostics({version,coopSnapshot:coopDiagnosticSnapshot,context:()=>({
+  mode:desktopScene.appUrl?.pathname==='/coop-play.html'?'coop':desktopScene.appUrl?.searchParams.get('solo')==='1'?'solo':'home',
+  wave:desktopScene.currentBattle?.waveIndex,
+  phase:desktopScene.getCurrentPhase()?.constructor.name,
+})});
+game.events.once('destroy',releaseDiagnostics);
 // Desktop close drains the same profile/connection boundary as in-app exit.
 (globalThis as any).__desktopPrepareClose=async()=>{
   const saved=await desktopScene.prepareAppLeave?.();
@@ -95,6 +103,7 @@ const markSceneReady=(url:URL)=>{
   app.dataset.gameDocument=documentId;app.dataset.sceneMode=url.pathname==='/coop-play.html'?'coop':url.searchParams.get('solo')==='1'?'solo':'home';
   app.dataset.sceneInitMs=(performance.now()-entryStartedAt).toFixed(1);
   app.dataset.sceneResourceRequests=String(performance.getEntriesByType('resource').length-entryResourceStart);
+  recordDiagnostic('scene-ready',{mode:app.dataset.sceneMode});
 };
 initialScene.appReady=()=>markSceneReady(initialScene.appUrl);
 const navigate=createAppNavigation({base:location.href,

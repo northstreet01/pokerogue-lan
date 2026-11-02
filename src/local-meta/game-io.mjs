@@ -1,4 +1,5 @@
 import {check, digest, exact, id, json} from './codec.mjs';
+import {recordDiagnostic,diagnosticCode} from '../diagnostics.mjs';
 
 /** One immutable profile binding per game instance; no global mutable save key. */
 export async function openGameProfileIO(repository, profileId, {mode='solo',readOnly=false,owner=globalThis.crypto.randomUUID(),onLost=()=>{}}={}) {
@@ -10,10 +11,12 @@ export async function openGameProfileIO(repository, profileId, {mode='solo',read
     check(!profile.hatchResults?.length,'LOCAL_HATCH_RESULTS_PENDING');
     check(!profile.eggRun?.eggs.length,'LOCAL_EGGS_RESERVED');
   }
-  const lease=readOnly?null:await repository.acquire(profileId,owner);
+  const lease=readOnly?null:await repository.acquire(profileId,owner).catch(error=>{
+    recordDiagnostic('profile-acquire-failed',{mode,code:diagnosticCode(error)});throw error;
+  });
   let timer;
   const assertAlive=()=>check(alive,'LOCAL_PROFILE_CLOSED');
-  const lose=error=>{if(alive){alive=false;accepting=false;clearInterval(timer);onLost(error);}};
+  const lose=error=>{if(alive){recordDiagnostic('profile-lease-lost',{mode,code:diagnosticCode(error)});alive=false;accepting=false;clearInterval(timer);onLost(error);}};
   if(lease) {timer=setInterval(()=>{
     queue=queue.then(async()=>{assertAlive();await repository.renew(profileId,lease);}).catch(lose);
   },10000);timer.unref?.();}
@@ -24,7 +27,7 @@ export async function openGameProfileIO(repository, profileId, {mode='solo',read
       const next=await repository.save(profileId,profile.revision,lease,p=>{assertAlive();return mutation(p);});
       assertAlive();profile=next;writeFailure=null;return next;
     });
-    queue=work.catch(error=>{writeFailure=error;});return work;
+    queue=work.catch(error=>{recordDiagnostic('profile-write-failed',{mode,code:diagnosticCode(error),revision:profile.revision});writeFailure=error;});return work;
   }
   function setSession(p,slot,session) {
     check([0,1,2].includes(slot),'INVALID_LOCAL_SLOT');

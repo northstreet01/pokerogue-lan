@@ -65,6 +65,8 @@ body:has(#coop-play-overlay){padding-top:112px;box-sizing:border-box}
 #coop-play-overlay .coop-item[data-dismissed=true]+.coop-item-description{display:none}
 #desktopControls { color: #dae7f7; }
 #desktopControls #coop-export-diagnostics{font:inherit;cursor:pointer}
+#desktopControls #app-export-diagnostics{font:inherit;cursor:pointer}
+body>#app-export-diagnostics{position:fixed;right:12px;bottom:12px;z-index:1001;cursor:pointer}
 body>#coop-export-diagnostics{position:fixed;right:12px;bottom:12px;z-index:150;cursor:pointer}
 #app-navigation-error { flex-basis: 100%; color: #ffd4bc; }
 @media(max-width:600px){#coop-play-overlay .coop-team-slot{font-size:10px}#coop-play-overlay .coop-team-heading{font-size:12px}#coop-play-overlay .coop-atlas-icon{width:36px}#coop-play-overlay .coop-inventory{align-items:flex-start}}

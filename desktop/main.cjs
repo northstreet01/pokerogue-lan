@@ -19,6 +19,7 @@ else {
     const runtime=await import(pathToFileURL(join(__dirname,'runtime.mjs')).href);
     const {openDesktopStorage,STORAGE_SCOPES}=await import(pathToFileURL(join(__dirname,'storage.mjs')).href);
     storage=openDesktopStorage(join(dataRoot,'storage'));
+    storage.releasePreviousProcessWriters();
     assets=await runtime.startAssetServer(join(app.getAppPath(),'dist'));
     hosts=runtime.createHostController({directory:join(dataRoot,'hosts','formal-rooms')});
     const trusted=event=>{

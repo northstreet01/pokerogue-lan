@@ -58,7 +58,7 @@ jobs:
         run: npm run test:desktop
       - name: Local profiles and guarded navigation
         if: matrix.suite == 'foundation'
-        run: node --test --test-concurrency=1 tests/local-meta.test.mjs tests/local-meta-ui.test.mjs tests/local-meta-entry.test.mjs
+        run: node --test --test-concurrency=1 tests/diagnostics.test.mjs tests/local-meta.test.mjs tests/local-meta-ui.test.mjs tests/local-meta-entry.test.mjs
       - name: Cooperative battle and socket regression tests
         if: matrix.shard != ''
         # Native Node shards partition FILES. Keep one file at a time inside

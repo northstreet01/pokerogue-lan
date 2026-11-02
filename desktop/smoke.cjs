@@ -26,6 +26,8 @@ module.exports=async({app,window,hosts,origin,dataRoot})=>{
     assert.equal(await evaluate('typeof pokerogueDesktop.startHost'),'function');
     assert.equal((await evaluate('pokerogueDesktop.hostState()')).value.running,false);
     assert.equal(await evaluate('document.querySelectorAll("canvas").length'),1);
+    assert.equal(await evaluate('document.querySelectorAll("#desktopControls #app-export-diagnostics").length'),1);
+    report.checks.push('global-diagnostics-toolbar');
     report.checks.push('local-home','sandboxed-renderer','no-auto-host','single-canvas');
     const status=await evaluate('pokerogueDesktop.storageStatus()');
     assert.equal(status.ok,true,status.code);assert.equal(status.value.initialized,true);

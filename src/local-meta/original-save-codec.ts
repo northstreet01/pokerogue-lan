@@ -18,6 +18,7 @@ import { getModifierTypeFuncById } from '../modifier/modifier-type';
 import { check, exact, json, uint } from './codec.mjs';
 import { AES, enc } from 'crypto-js';
 import {restorePokemonState} from '../field/pokemon';
+import {ORIGINAL_SAVE_VERSION} from '../system/save-version';
 
 const SYSTEM_KEYS = ['trainerId','secretId','gender','dexData','starterMoveData','starterEggMoveData','gameStats','unlocks',
   'achvUnlocks','voucherUnlocks','voucherCounts','eggs','gameVersion','timestamp'];
@@ -32,7 +33,7 @@ const record = value => check(value && typeof value === 'object' && !Array.isArr
 const counter = value => check(typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= Number.MAX_SAFE_INTEGER);
 const int = (value, min = 0, max = Number.MAX_SAFE_INTEGER) => check(Number.isSafeInteger(value) && value >= min && value <= max);
 const numericKeys = (value, valid) => { record(value); for (const key of Object.keys(value)) check(/^(0|[1-9][0-9]*)$/.test(key) && valid(Number(key)), 'UNKNOWN_ORIGINAL_CATALOG_ID'); };
-const version = v => check(v.gameVersion === '1.0.0' && uint(v.timestamp), 'ORIGINAL_SAVE_VERSION_MISMATCH');
+const version = v => check(v.gameVersion === ORIGINAL_SAVE_VERSION && uint(v.timestamp), 'ORIGINAL_SAVE_VERSION_MISMATCH');
 function move(id) { check(Number.isSafeInteger(id) && id > 0 && !!allMoves[id], 'UNKNOWN_ORIGINAL_MOVE'); }
 function moves(list) { check(Array.isArray(list) && list.length >= 1 && list.length <= 4); for (const m of list) move(m); }
 function dexAttr(value: number | string, max: bigint) {

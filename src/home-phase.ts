@@ -13,6 +13,7 @@ import {captureLegacySource,prsvSystemSource} from './local-meta/legacy-source';
 import {legacyBackupSource} from './local-meta/repository.mjs';
 import {digest} from './local-meta/codec.mjs';
 import i18next from './i18n';
+import {recordDiagnostic,diagnosticCode} from './diagnostics.mjs';
 import {readHosts,hostScope} from './coop/host-connection.mjs';
 import {SaveSlotUiMode} from './ui/save-slot-select-ui-handler';
 import {Egg} from './data/egg';
@@ -168,7 +169,8 @@ export class HomePhase extends Phase {
       const onCancel = () => { if (this.current(epoch)) void this.showHome(); };
       const options = { readOnly: !writable, onCancel };
       await this.display(epoch, mode, mode === Mode.STARTER_SELECT ? [() => {}, options] : [options], view);
-    } catch {
+    } catch(error) {
+      recordDiagnostic('home-browse-failed',{code:diagnosticCode(error)});
       if (this.current(epoch)) await this.menu(epoch, [
         ['个人资料读取失败，重试', () => { void this.browse(mode); }],
         ['返回初始界面', () => { void this.showHome(); }],

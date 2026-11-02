@@ -41,6 +41,23 @@ test('native recovery deletion is scoped, durable and prevents a delayed session
 });
 function commit(db,scope,changes){const snap=db.snapshot(scope,Object.keys(changes));return db.commit({scope,keys:Object.keys(changes),expectedRevision:snap.revision,changes});}
 
+test('cold desktop start releases previous process writers without removing profiles or recovery data',()=>{
+  const e=setup();
+  try{
+    commit(e.db,'meta',{'lease:one':{owner:'old',token:'old-token',expires:Date.now()+30000},'profile:one':{kept:true},'history:one':{kept:true}});
+    commit(e.db,'legacy',{'coop-profile-lease':{owner:'old'},data:'kept'});
+    commit(e.db,'seats',{seat:{token:'kept'}});
+    const revision=e.db.status().revision;
+    assert.equal(e.db.releasePreviousProcessWriters(),2);
+    assert.equal(e.db.status().revision,revision+1);
+    assert.deepEqual(e.db.snapshot('meta').records,{'profile:one':{kept:true},'history:one':{kept:true}});
+    assert.deepEqual(e.db.snapshot('legacy').records,{data:'kept'});
+    assert.deepEqual(e.db.snapshot('seats').records,{seat:{token:'kept'}});
+    assert.equal(e.db.releasePreviousProcessWriters(),0);
+    assert.equal(e.db.status().revision,revision+1);
+  }finally{e.db.close();}
+});
+
 test('SQLite keeps all rows atomic, rejects stale CAS and persists across reopen',async()=>{
   const e=setup();let db=e.db;
   const port=createNativeStore('meta',e.bridge);

@@ -5,6 +5,7 @@ import {originalSaveCodec} from './original-save-codec';
 import {openGameProfileIO} from './game-io.mjs';
 import {Mode} from '../ui/ui';
 import i18next from '../i18n';
+import {recordDiagnostic,diagnosticCode} from '../diagnostics.mjs';
 
 // Creation is lazy. Importing phases in the headless Worker never opens a DB.
 export function profileRepository(isCurrent=()=>true){
@@ -14,6 +15,7 @@ export function profileRepository(isCurrent=()=>true){
   })},codec:createMetaCodec(originalSaveCodec)});
 }
 export function localProfileError(error:any):string {
+  recordDiagnostic('profile-error',{code:diagnosticCode(error)});
   const key=String(error?.code??error?.message??'');
   if(key==='DESKTOP_MIGRATION_REQUIRED')return '尚未确认旧桌面资料迁移。原资料保留，请重试并确认迁移，或退出程序。';
   if(key==='DESKTOP_MIGRATION_CHANGED')return '迁移期间旧资料发生变化，尚未写入。请停止其他保存操作后重试。';

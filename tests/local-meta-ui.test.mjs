@@ -10,6 +10,7 @@ import {createProfileRepository} from '../src/local-meta/repository.mjs';
 import {createMetaStore} from '../src/local-meta/idb-store.mjs';
 import {createMetaCodec} from '../src/local-meta/codec.mjs';
 import {digest} from '../src/local-meta/codec.mjs';
+import {readFileSync} from 'node:fs';
 
 let api,base,dom;const factory=new IDBFactory();
 function globals(){
@@ -112,6 +113,40 @@ test('real GameData writes collection and session together, reopens both and nev
   const readonly=await writer(t,p.profileId,{readOnly:true}),next=game(readonly);assert.equal(await next.data.loadSystem(),true);
   assert.equal(next.data.gameStats.battles,7);assert.equal((await next.data.getSession(0)).waveIndex,12);
   assert.equal(await api.readLocalSave('data'),legacy);assert.deepEqual((await r.read(other.profileId)).originalSystem,other.originalSystem);
+});
+
+test('desktop release version does not change the original solo save schema or block egg purchases',async t=>{
+  const {r,p}=await created(),io=await writer(t,p.profileId),g=game(io);
+  g.scene.game.config.gameVersion=JSON.parse(readFileSync('package.json','utf8')).version;
+  assert.equal(await g.data.loadSystem(),true);
+  g.data.voucherCounts[1]=1;
+  assert.equal(await g.data.saveEncounter(g.scene),true);
+  const eggs=await g.data.purchaseEggs(2,1);
+  assert.equal(eggs.length,5);
+  const saved=await r.read(p.profileId);
+  assert.equal(saved.originalSystem.gameVersion,'1.0.0');
+  assert.equal(saved.soloRuns[0].originalSession.gameVersion,'1.0.0');
+  assert.equal(saved.originalSystem.voucherCounts[1],0);
+  assert.equal(saved.originalSystem.eggs.length,5);
+});
+
+test('solo Rillaboom G-Max and Aegislash blade survive profile save validation and reopen',async t=>{
+  const {r,p}=await created(),io=await writer(t,p.profileId),g=game(io);
+  g.scene.game.config.gameVersion=JSON.parse(readFileSync('package.json','utf8')).version;
+  await g.data.loadSystem();
+  for(const species of [812,681]){
+    const pokemon=api.constructOriginalPokemon(g.runtime,species,50);
+    pokemon.formIndex=1;pokemon.calculateStats();g.scene.party=[pokemon];
+    if(species===812){
+      const type=api.modifierTypes.FORM_CHANGE_ITEM().withIdFromFunc(api.modifierTypes.FORM_CHANGE_ITEM)
+        .generateType([pokemon],[api.FormChangeItem.MAX_MUSHROOMS]);
+      g.scene.modifiers=[type.newModifier(pokemon)];
+    }else g.scene.modifiers=[];
+    assert.equal(await g.data.saveEncounter(g.scene),true,`species ${species}`);
+    const saved=await r.read(p.profileId),session=saved.soloRuns[0].originalSession;
+    assert.equal(session.party[0].species,species);assert.equal(session.party[0].formIndex,1);
+    assert.deepEqual(api.originalSaveCodec.session(session),session);
+  }
 });
 test('write failure cannot commit half an encounter and an exact retry saves both original snapshots',async t=>{
   const {r,p}=await created(),store=createMetaStore({indexedDB:factory});let fail=false;

@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {JSDOM} from 'jsdom';
+
+test('global export works without a game menu and includes persisted failures without private payloads',async t=>{
+  const dom=new JSDOM('<nav id="desktopControls"></nav>',{url:'http://localhost/'});
+  const previous=globalThis.localStorage;globalThis.localStorage=dom.window.localStorage;
+  const {recordDiagnostic,flushDiagnostics,diagnosticCode,installDiagnostics}=await import('../src/diagnostics.mjs?global-test');
+  const create=URL.createObjectURL,revoke=URL.revokeObjectURL,click=dom.window.HTMLAnchorElement.prototype.click;
+  let blob,filename;
+  URL.createObjectURL=value=>{blob=value;return 'blob:test';};URL.revokeObjectURL=()=>{};
+  dom.window.HTMLAnchorElement.prototype.click=function(){filename=this.download;};
+  const cleanup=installDiagnostics({document:dom.window.document,window:dom.window,version:'test',context:()=>({mode:'solo',wave:12}),coopSnapshot:()=>({entries:[]})});
+  t.after(()=>{cleanup();globalThis.localStorage=previous;URL.createObjectURL=create;URL.revokeObjectURL=revoke;dom.window.HTMLAnchorElement.prototype.click=click;dom.window.close();});
+  recordDiagnostic('save-failed',{code:'ORIGINAL_SAVE_VERSION_MISMATCH',token:'PRIVATE',profileId:'PRIVATE',payload:{save:'PRIVATE'},message:'PRIVATE'});
+  dom.window.dispatchEvent(new dom.window.ErrorEvent('error',{error:new TypeError('PRIVATE'),lineno:5,colno:2}));
+  dom.window.document.getElementById('app-export-diagnostics').click();
+  const exported=JSON.parse(await blob.text());
+  assert.match(filename,/^pokerogue-diagnostics-/);
+  assert.equal(exported.appVersion,'test');assert.deepEqual(exported.coop,{entries:[]});
+  assert.ok(exported.entries.some(e=>e.details.code==='ORIGINAL_SAVE_VERSION_MISMATCH'));
+  assert.ok(exported.entries.some(e=>e.event==='uncaught-error'&&e.details.line===5));
+  assert.ok(exported.entries.some(e=>e.event==='export'&&e.details.mode==='solo'));
+  assert.equal(JSON.stringify(exported).includes('PRIVATE'),false);
+  assert.equal(diagnosticCode(new Error('URL and private message')),'Error');
+  flushDiagnostics();
+  const reopened=await import('../src/diagnostics.mjs?restart-test');
+  assert.ok(reopened.diagnosticSnapshot().entries.some(e=>e.event==='save-failed'));
+  for(let i=0;i<300;i++)reopened.recordDiagnostic('event',{wave:i});
+  assert.equal(reopened.diagnosticSnapshot().entries.length,240);reopened.flushDiagnostics();
+});

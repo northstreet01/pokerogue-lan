@@ -250,7 +250,7 @@ export default class CoopPlayPhase extends Phase {
     this.diagnosticButton?.remove();this.diagnosticButton=diagnostics;
     // The bottom application toolbar stays outside Phaser menus and the
     // scrolling cooperative HUD, including while a decision is blocked.
-    (document.getElementById('desktopControls')??document.body).append(diagnostics);
+    if(!document.getElementById('app-export-diagnostics'))(document.getElementById('desktopControls')??document.body).append(diagnostics);
     this.overlay.append(this.panel);
     document.body.append(this.overlay);
     this.renderLobbyControls();

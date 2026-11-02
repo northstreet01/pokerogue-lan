@@ -32,10 +32,13 @@ export function recordCoopDiagnostic(event,details={}){
   }catch{/* Diagnostics must never interrupt gameplay. */}
 }
 
-export function exportCoopDiagnostics(){
+export function coopDiagnosticSnapshot(){
   const saved=entries();flushCoopDiagnostics();
-  const data={format:'pokerogue-coop-diagnostics',version:1,exportedAt:new Date().toISOString(),
+  return {format:'pokerogue-coop-diagnostics',version:1,exportedAt:new Date().toISOString(),
     entries:saved.slice()};
+}
+export function exportCoopDiagnostics(){
+  const data=coopDiagnosticSnapshot();
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),link=document.createElement('a');
   link.href=url;link.download=`pokerogue-coop-diagnostics-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;

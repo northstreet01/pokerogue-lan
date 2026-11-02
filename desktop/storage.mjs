@@ -116,5 +116,14 @@ export function openDesktopStorage(directory,{beforeCommit=()=>{}}={}){
       putState('revision',rev);return {protectiveBackup,revision:rev};
     });
   }
-  return {path,status,snapshot,commit,initialize,backup,restore,close:()=>db.close()};
+  // Main calls this only once after obtaining Electron's single-instance lock,
+  // before creating any renderer. No writer from the previous process survives.
+  function releasePreviousProcessWriters(){
+    return transaction('release-previous-writers',()=>{
+      const removed=db.prepare("DELETE FROM records WHERE (scope='meta' AND substr(key,1,6)='lease:') OR (scope='legacy' AND key='coop-profile-lease')").run().changes;
+      if(removed)putState('revision',revision()+1);
+      return removed;
+    });
+  }
+  return {path,status,snapshot,commit,initialize,backup,restore,releasePreviousProcessWriters,close:()=>db.close()};
 }

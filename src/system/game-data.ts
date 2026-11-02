@@ -1,4 +1,6 @@
 import {deviceStorage} from '../platform/preferences.mjs';
+import {recordDiagnostic,diagnosticCode} from '../diagnostics.mjs';
+import {ORIGINAL_SAVE_VERSION} from './save-version';
 import BattleScene, { PokeballCounts, bypassLogin } from "../battle-scene";
 import i18next from '../i18n';
 import Pokemon, { EnemyPokemon, PlayerPokemon, restorePokemonState, capturePokemonState } from "../field/pokemon";
@@ -217,6 +219,7 @@ export class GameData {
       if(op.type!=='gacha'||op.choice!==choice||op.gacha!==gacha)throw new Error('GACHA_RETRY_PENDING');
       await this.commitStagedEggOperation(op);
       return op.eggs;
+    }catch(error){recordDiagnostic('egg-purchase-failed',{code:diagnosticCode(error),choice,gacha});throw error;
     }finally{this.eggOperationBusy=false;}
   }
 
@@ -493,7 +496,7 @@ export class GameData {
           voucherUnlocks: this.voucherUnlocks,
           voucherCounts: this.voucherCounts,
           eggs: this.eggs.map(e => new EggData(e)),
-          gameVersion: this.scene.game.config.gameVersion,
+          gameVersion: ORIGINAL_SAVE_VERSION,
           timestamp: new Date().getTime()
         };
 
@@ -518,7 +521,7 @@ export class GameData {
         this.localSystemSnapshot = await this.profileIO.writeSystem(data, this.localSystemSnapshot);
       });
       this.localSystemSaveQueue = write;
-      return write.then(() => true, error => { console.error('Profile save failed', error); return false; });
+      return write.then(() => true, error => { recordDiagnostic('save-failed',{operation:'system',code:diagnosticCode(error)});console.error('Profile save failed', error); return false; });
     }
     return new Promise<boolean>(resolve => {
       this.refreshUserInfo().then((success: boolean) => {
@@ -760,7 +763,7 @@ export class GameData {
       waveIndex: scene.currentBattle.waveIndex,
       battleType: scene.currentBattle.battleType,
       trainer: scene.currentBattle.battleType == BattleType.TRAINER ? new TrainerData(scene.currentBattle.trainer) : null,
-      gameVersion: scene.game.config.gameVersion,
+      gameVersion: ORIGINAL_SAVE_VERSION,
       timestamp: new Date().getTime()
     } as SessionSaveData;
   }
@@ -783,7 +786,9 @@ export class GameData {
         this.localSystemSnapshot = await this.profileIO.read('data');
       });
       this.localSystemSaveQueue = write;
-      return write.then(() => true, error => { console.error('Profile adventure save failed', error); return false; });
+      return write.then(() => true, error => { recordDiagnostic('save-failed',{operation:'adventure',code:diagnosticCode(error),wave:scene.currentBattle?.waveIndex});
+        for(const p of scene.getParty())recordDiagnostic('save-party-form',{species:p.species.speciesId,form:p.formIndex});
+        console.error('Profile adventure save failed', error); return false; });
     }
     return new Promise<boolean>(resolve => {
       Utils.executeIf(!skipVerification, () => this.refreshUserInfo()).then(success => {

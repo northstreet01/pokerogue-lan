@@ -20,3 +20,5 @@ export {SaveSlotUiMode,default as SaveSlotSelectUiHandler} from '../../src/ui/sa
 export {Button} from '../../src/battle-scene';
 export {default as AchvsUiHandler} from '../../src/ui/achvs-ui-handler';
 export {achvs} from '../../src/system/achv';
+export {modifierTypes} from '../../src/modifier/modifier-type';
+export {FormChangeItem} from '../../src/data/pokemon-forms';
