@@ -41,6 +41,7 @@ interface TurnCommands {
 }
 
 export default class Battle {
+    public payDayMoney?: [number, number];
     protected gameMode: GameMode;
     public waveIndex: integer;
     public battleType: BattleType;

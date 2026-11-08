@@ -25,6 +25,9 @@ import { Type } from "../data/type";
 import { Moves } from "../data/enums/moves";
 import { speciesEggMoves } from "../data/egg-moves";
 import { TitlePhase } from "../phases";
+import { mountStarterBrowser } from './starter-browser.mjs';
+import './starter-browser.css';
+import { deviceStorage } from '../platform/preferences.mjs';
 
 export type StarterSelectCallback = (starters: Starter[]) => void;
 
@@ -39,6 +42,7 @@ export interface Starter {
 const gens = [ 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX' ];
 
 export default class StarterSelectUiHandler extends MessageUiHandler {
+  private releaseBrowser?: () => void;
   private starterSelectContainer: Phaser.GameObjects.Container;
   private shinyOverlay: Phaser.GameObjects.Image;
   private starterSelectGenIconContainers: Phaser.GameObjects.Container[];
@@ -509,6 +513,39 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
       this.restoringStarters = false;
       this.starterChangeSignature = '';
       this.notifyStarterChange();
+
+      this.releaseBrowser?.();
+      this.releaseBrowser = mountStarterBrowser({entries:this.genSpecies.flat(),data:this.selectionData,
+        types:Object.keys(Type).filter(key=>Number.isInteger(Number(key))&&Number(key)>=0)
+          .map(key=>[key,i18next.t(`pokemonInfo:type.${Type[Number(key)].toLowerCase()}`,{defaultValue:Type[Number(key)]})]),
+        storage:deviceStorage(),blocked:(id:number)=>!!this.starterSelectOptions.isSpeciesBlocked?.(id),
+        describe:(species:PokemonSpecies)=>{
+          const data=this.selectionData,dex=data.dexData[species.speciesId];
+          const attrs=data.getSpeciesDexAttrProps(species,data.getSpeciesDefaultDexAttr(species));
+          const ability=allAbilities[species.getAbility(attrs.abilityIndex)];
+          const eggs=speciesEggMoves[species.speciesId]??[],mask=data.starterEggMoveData[species.speciesId]??0;
+          return [`${species.name} · 图鉴 ${species.speciesId}`,
+            '当前可选图鉴资料（房间共享不代表永久解锁）',
+            `状态：${dex?.caughtAttr?'已解锁':dex?.seenAttr?'已遇见':'未解锁'} · 费用 ${data.getSpeciesStarterValue(species.speciesId)}`,
+            `种族值总和：${species.baseTotal}`,
+            `默认特性：${ability.name}\n${ability.description}`,
+            `最高IV（HP/攻击/防御/特攻/特防/速度）：${dex?.ivs?.join('/')??'暂无'}`,
+            '蛋招：'+(eggs.length?eggs.map((id,index)=>`${mask&(1<<index)?'已解锁':'未解锁'} ${allMoves[id].name}`).join('\n'):'暂无'),
+            '招式／特性名称中的 (N) 表示未实现，(P) 表示部分实现。'].join('\n');
+        },
+        onLocate:(species:PokemonSpecies)=>{
+          if(!this.active||this.scene.ui.getMode()!==Mode.STARTER_SELECT)return;
+          const gen=species.generation-1,index=this.genSpecies[gen].indexOf(species);
+          if(index<0)return;
+          if(this.pendingPrompt)return;
+          if(this.statsMode)this.toggleStatsMode(false);
+          this.startCursorObj.setVisible(false);
+          this.setGenMode(true);
+          this.starterSelectGenIconContainers.forEach(container=>container.setVisible(false));
+          this.genScrollCursor=Math.min(Math.max(gen-1,0),gens.length-3);
+          this.updateGenOptions();this.setCursor(gen-this.genScrollCursor);
+          this.setGenMode(false);this.setCursor(index);this.scene.ui.playSelect();
+        }});
 
       if (!this.starterSelectOptions.readOnly) handleTutorial(this.scene, Tutorial.Starter_Select);
 
@@ -1173,10 +1210,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
         this.pokemonGenderText.setText('');
 
       if (dexEntry.caughtAttr) {
-        const ability = this.lastSpecies.getAbility(abilityIndex);
+        const ability = species.getAbility(abilityIndex);
         this.pokemonAbilityText.setText(allAbilities[ability].name);
 
-        const isHidden = ability === this.lastSpecies.abilityHidden;
+        const isHidden = ability === species.abilityHidden;
         this.pokemonAbilityText.setColor(getTextColor(!isHidden ? TextStyle.SUMMARY : TextStyle.SUMMARY_GOLD));
         this.pokemonAbilityText.setShadowColor(getTextColor(!isHidden ? TextStyle.SUMMARY : TextStyle.SUMMARY_GOLD, true));
 
@@ -1423,6 +1460,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
 
   clear(): void {
     super.clear();
+    this.releaseBrowser?.();this.releaseBrowser=undefined;
     if (this.assetLoadCancelled) this.assetLoadCancelled.value = true;
     this.cursor = -1;
     this.starterSelectContainer.setVisible(false);

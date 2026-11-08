@@ -14,6 +14,8 @@ import { selectEnemyCommand } from './battle-core/enemy-command.mjs';
 import { getFieldOrder, getMoveOrder } from './battle-core/turn-order.mjs';
 import { queueFaintContinuation } from './battle-core/faint-queue.mjs';
 import i18next from './i18n';
+import {titleMusic} from './ui/music-caption.mjs';
+import {takePayDay} from './battle-core/pay-day.mjs';
 import BattleScene, { STARTER_FORM_OVERRIDE, STARTER_SPECIES_OVERRIDE, bypassLogin, startingWave } from "./battle-scene";
 import { observeRulePromise } from './battle-core/rule-task-tracker.mjs';
 import { default as Pokemon, PlayerPokemon, EnemyPokemon, PokemonMove, MoveResult, DamageResult, FieldPosition, HitResult, TurnMove } from "./field/pokemon";
@@ -181,7 +183,7 @@ export class TitlePhase extends Phase {
     this.scene.ui.clearText();
     this.scene.ui.fadeIn(250);
 
-    this.scene.fadeOutBgm(0, false);
+    this.scene.playBgm(titleMusic(),true);
 
     this.scene.gameData.getSession(loggedInUser.lastSessionSlot).then(sessionData => {
       if(this.scene.appRetired)return;
@@ -1796,6 +1798,18 @@ export class TurnEndPhase extends FieldPhase {
 export class BattleEndPhase extends BattlePhase {
   start() {
     super.start();
+
+    if(this.scene.currentBattle.payDayMoney){
+      const pending=takePayDay(this.scene.currentBattle);
+      this.scene.getPayDayRewardScenes().forEach((scene,seat)=>{
+        if(!pending[seat])return;
+        const amount=new Utils.IntegerHolder(pending[seat]);
+        scene.applyModifiers(MoneyMultiplierModifier,true,amount);
+        if(!Number.isSafeInteger(amount.value)||amount.value<0||!Number.isSafeInteger(scene.money+amount.value))throw Error('INVALID_PAY_DAY_MONEY');
+        scene.money+=amount.value;scene.updateMoneyText();scene.validateAchvs(MoneyAchv);
+        scene.queueMessage(i18next.t('battle:payDayMoneyPickedUp',{moneyAmount:amount.value.toLocaleString('en-US')}));
+      });
+    }
 
     this.scene.currentBattle.addBattleScore(this.scene);
 

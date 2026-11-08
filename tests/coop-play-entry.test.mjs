@@ -43,6 +43,34 @@ function phase() {
   return { p, sent, errors };
 }
 
+test('native room buttons isolate activation keys, release focus and reuse game feedback sounds', async () => {
+  const { p, errors } = phase(), sounds = [], bubbled = [];
+  p.scene.playSound = key => sounds.push(key);
+  let calls = 0;
+  const button = p.button('创建房间', () => { calls++; });
+  document.body.append(button);
+  document.body.addEventListener('keydown', event => bubbled.push(event.key));
+  const KeyboardEvent = document.defaultView.KeyboardEvent;
+  button.focus();
+  for (const key of ['Enter', ' ']) {
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    button.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, false, 'native button activation remains available');
+  }
+  assert.deepEqual(bubbled, []);
+  button.click(); await tick();
+  assert.equal(calls, 1); assert.deepEqual(sounds, ['select']);
+  assert.notEqual(document.activeElement, button);
+  button.disabled = true; button.click(); await tick();
+  assert.equal(calls, 1); assert.deepEqual(sounds, ['select']);
+  const failure = p.button('失败操作', async () => { throw Error('synthetic-operation-failure'); });
+  failure.click(); await tick();
+  assert.deepEqual(sounds, ['select', 'select', 'error']);
+  assert.ok(errors.some(message => message.includes('synthetic-operation-failure')));
+  p.disposed = true; failure.click(); await tick();
+  assert.equal(sounds.length, 3);
+});
+
 test('LAN entry discovers hosts without an IP field; remote entry and manual fallback retain addresses',async()=>{
   const {p}=phase();let finishScan,calls=0;const connections=[];
   globalThis.pokerogueDesktop={version:1,discoverHosts:()=>{calls++;return new Promise(resolve=>{finishScan=resolve;});}};
@@ -268,6 +296,53 @@ test('original Starter restores selected attributes and moves through its detail
   handler.notifyStarterChange();
   assert.deepEqual(changes[0].map(starter => starter.moveset), [[33], [10, 45]]);
   starters[1].moveset.pop(); assert.deepEqual(changes[0][1].moveset, [10, 45]);
+});
+
+test('original Starter restores a team after the generation cursor clears the preview species', () => {
+  const gd = draftGameData(); gd.starterMoveData = {};
+  const widget = () => ({ setVisible() {}, setText(value) { this.text = value; }, setColor() {},
+    setShadowColor() {}, setTexture() {}, setFrame() {}, setPosition() {} });
+  const handler = Object.assign(Object.create(api.StarterSelectUiHandler.prototype), {
+    scene: { gameData: gd }, starterSelectOptions: {}, lastSpecies: null, dexAttrCursor: 0n,
+    starterGens: [], starterCursors: [], starterAttr: [], starterNatures: [], starterMovesets: [],
+    genSpecies: [[api.getPokemonSpecies(1), api.getPokemonSpecies(4)]],
+    starterIcons: [widget(), widget()], starterCursorObjs: [widget(), widget()],
+    tryUpdateValue() {}, setGenMode() {}, setCursor() {}, updateInstructions() {},
+  });
+  for (const key of ['pokemonSprite', 'shinyOverlay', 'pokemonNumberText', 'pokemonGenderText',
+    'pokemonAbilityText', 'pokemonNatureText', 'pokemonMovesContainer', 'pokemonEggMovesContainer',
+    'pokemonAdditionalMoveCountLabel']) handler[key] = widget();
+  for (const key of ['pokemonMoveBgs', 'pokemonMoveLabels', 'pokemonMoveContainers',
+    'pokemonEggMoveBgs', 'pokemonEggMoveLabels']) handler[key] = Array.from({ length: 4 }, widget);
+  const starters = draftStarters([1, 4]);
+  handler.restoreSelectedStarters(starters);
+  assert.deepEqual(handler.starterGens, [0, 0]);
+  assert.ok(handler.starterMovesets.every(moves => moves.length > 0));
+  assert.equal(handler.pokemonAbilityText.text, api.allAbilities[starters[1].species.getAbility(0)].name);
+  assert.equal(handler.lastSpecies, null, 'restoring a team does not require a preview selection');
+});
+
+test('failed original UI transition rejects, clears the black overlay and permits recovery', async () => {
+  globalThis.document = new JSDOM('<!doctype html><body></body>').window.document;
+  let completeTransition, cancelled = 0, recovered = 0;
+  const failure = new TypeError('TEST_STARTER_SHOW_FAILED');
+  const ui = Object.assign(Object.create(api.UI.prototype), {
+    mode: api.Mode.MESSAGE, modeChain: [],
+    scene: { time: { delayedCall(_delay, callback) { completeTransition = callback; } } },
+    getHandler() { return this.mode === api.Mode.STARTER_SELECT
+      ? { show() { throw failure; }, clear() {} }
+      : { show() { recovered++; }, clear() {} }; },
+    fadeOut: async () => {}, fadeIn: async () => {}, cancelFade() { cancelled++; },
+  });
+  const opening = ui.setMode(api.Mode.STARTER_SELECT, () => {});
+  const rejected = assert.rejects(opening, error => error === failure);
+  await Promise.resolve();
+  assert.doesNotThrow(() => completeTransition());
+  await rejected;
+  assert.equal(cancelled, 1);
+  const recovery = ui.setMode(api.Mode.MESSAGE);
+  await Promise.resolve(); completeTransition(); await recovery;
+  assert.equal(recovered, 1);
 });
 
 test('public lobby renders both authoritative selections and fractional budget without replacing a dirty local draft or menu', async () => {

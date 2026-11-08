@@ -103,3 +103,32 @@ test('clicking the original POKEMON command reaches the cooperative port without
   s.click();
   assert.equal(selected, 2);
 });
+
+test('Summary mouse rows use the learning callback and cancel path with the original cooldown',()=>{
+  const s=pointerScene(),chosen=[];
+  const summary=Object.assign(Object.create(api.SummaryUiHandler.prototype),{scene:s.scene,active:true,
+    pointerBindings:new WeakMap(),
+    cursor:2,moveSelect:true,moveCursor:0,summaryUiMode:api.SummaryUiMode.LEARN_MOVE,
+    pokemon:{moveset:[{},{},{},{}]},moveSelectFunction:index=>chosen.push(index),
+    setCursor(index){this.moveCursor=index;return true;}});
+  s.ui.getHandler=()=>summary;s.ui.processInput=button=>summary.processInput(button);s.ui.playSelect=()=>{};
+  summary.bindMoveRow(s.target,2);s.click();s.click();assert.deepEqual(chosen,[2]);
+  s.timers.shift()();summary.bindMoveRow(s.target,4);s.click();assert.deepEqual(chosen,[2,4]);
+  s.timers.shift()();summary.transitioning=true;s.click();assert.deepEqual(chosen,[2,4]);
+});
+
+test('Pay Day uses wave rewards and BattleEnd pays personal balances only once',async()=>{
+  api.describeOriginalCatalogs();
+  const move=api.allMoves[6],attr=move.attrs.find(a=>a.constructor.name==='PayDayAttr');
+  assert.ok(attr);const battle={waveIndex:1,addBattleScore(){}};
+  const user={isPlayer:()=>true,scene:{currentBattle:battle,nativeOwner:1,getWaveMoneyAmount:rate=>{assert.equal(rate,.2);return 30;}}};
+  attr.apply(user,{},move,[]);attr.apply(user,{},move,[]);
+  attr.apply({isPlayer:()=>false},{},move,[]);
+  const messages=[],views=[0,1].map(seat=>({money:100,applyModifiers(_type,_player,holder){holder.value*=seat===1?2:1;},
+    updateMoneyText(){},validateAchvs(){},queueMessage:text=>messages.push(text)}));
+  const scene={currentBattle:battle,getPayDayRewardScenes:()=>views,gameData:{gameStats:{battles:0}},gameMode:{isEndless:false},
+    getField:()=>[],getParty:()=>[],clearEnemyHeldItemModifiers(){},findModifiers:()=>[],updateModifiers:async()=>{}};
+  const phase=new api.BattleEndPhase(scene);phase.end=()=>{};
+  phase.start();await Promise.resolve();assert.deepEqual(views.map(v=>v.money),[100,220]);
+  phase.start();await Promise.resolve();assert.deepEqual(views.map(v=>v.money),[100,220]);assert.equal(messages.length,1);
+});

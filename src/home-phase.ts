@@ -20,6 +20,7 @@ import {Egg} from './data/egg';
 import {EggHatchPhase} from './egg-hatch-phase';
 import {restorePokemonState,PlayerPokemon} from './field/pokemon';
 import {createCoopPokemonDisplay} from './coop/battle-presentation';
+import {titleMusic} from './ui/music-caption.mjs';
 
 /** Root has no login/save/room side effects. Direct game entries retain login. */
 export function entryPhases(scene: BattleScene, coop: boolean, solo: boolean): Phase[] {
@@ -29,6 +30,7 @@ export function entryPhases(scene: BattleScene, coop: boolean, solo: boolean): P
 }
 
 export class HomePhase extends Phase {
+  private menuPositions = new Map<string,string>();
   private epoch = 0;
   private disposed = false;
   private transitions: Promise<void> = Promise.resolve();
@@ -44,7 +46,7 @@ export class HomePhase extends Phase {
   start(): void {
     super.start();
     this.scene.fadeOutBgm(0, false);
-    this.scene.playBgm?.('menu', false, this.music.signal);
+    this.scene.playBgm?.(titleMusic(), false, this.music.signal);
     this.scene.ui.fadeIn(250);
     // Original town art, without any party, enemy, battle HUD or old scene.
     if(this.scene.add?.nineslice){
@@ -95,17 +97,19 @@ export class HomePhase extends Phase {
     return transition;
   }
 
-  private menu(epoch: number, items: [string, () => unknown][], context?:string): Promise<void> {
+  private menu(epoch: number, items: [string, () => unknown][], context?:string, menuKey?:string): Promise<void> {
     const options: OptionSelectItem[] = items.map(([label, action]) => {
       let used = false;
       return { label, keepOpen: true, handler: () => {
         if (!this.current(epoch) || used) return;
         used = true;
+        if(menuKey)this.menuPositions.set(menuKey,label);
         const result=action(),actionEpoch=this.epoch;
         void Promise.resolve(result).catch(error=>{if(this.current(actionEpoch))void this.showError(error);});
       } };
     });
     return this.display(epoch, Mode.TITLE, [{ options, noCancel: true, maxOptions: 6, yOffset: 47,
+      initialIndex:menuKey?Math.max(0,items.findIndex(([label])=>label===this.menuPositions.get(menuKey))):0,
       contextLabel: context??(this.activeProfile?this.t('current',{name:this.profileName.slice(0,14)}):'选择冒险 / 个人资料') }]);
   }
 
@@ -113,6 +117,7 @@ export class HomePhase extends Phase {
     // The Home menu key must not clear the original hatch sprites while their
     // timers are playing. Confirm/cancel still use the original skip control.
     if(this.originalData&&this.scene.ui.getMode()===Mode.EGG_HATCH_SCENE)return;
+    this.scene.playBgm?.(titleMusic(),false,this.music.signal);
     // Root creates a battle backdrop before an adventure. Home shows only menus.
     for (const object of [this.scene.field, this.scene.fieldUI, this.scene.arenaBg,
       this.scene.arenaBgTransition, this.scene.arenaPlayer, this.scene.arenaEnemy,
@@ -132,25 +137,34 @@ export class HomePhase extends Phase {
       ['单人冒险', () => this.navigate('/?solo=1')],
       ['联机冒险', () => this.navigate('/coop-play.html?fresh=1')],
       ['恢复已有联机', () => { void this.showRecovery(); }],
-      ['宝可梦图鉴', () => { void this.browse(Mode.STARTER_SELECT); }],
-      ['个人资料', () => { void this.showPersonal(); }],
+      ['图鉴／蛋／收藏', () => { void this.showPersonal(); }],
       [this.t('profiles'),()=>this.showProfiles()],
-    ], outcomeText);
+      ['游戏设置／音量', () => this.showSettings()],
+    ], outcomeText, 'home');
   }
 
   private showPersonal(): Promise<void> {
     const epoch = ++this.epoch;
     return this.menu(epoch, [
-      ['我的未孵化蛋', () => { void this.browse(Mode.EGG_LIST); }],
-      ['蛋扭蛋机', () => { void this.browse(Mode.EGG_GACHA); }],
+      ['宝可梦图鉴', () => this.browse(Mode.STARTER_SELECT, true)],
+      ['我的未孵化蛋', () => this.browse(Mode.EGG_LIST, true)],
+      ['蛋扭蛋机', () => this.browse(Mode.EGG_GACHA, true)],
       ['领取已完成孵化', () => { void this.finishEggHatches(); }],
-      ['成就', () => { void this.browse(Mode.ACHIEVEMENTS); }],
-      ['游戏统计', () => { void this.browse(Mode.GAME_STATS); }],
+      ['成就', () => this.browse(Mode.ACHIEVEMENTS, true)],
+      ['游戏统计', () => this.browse(Mode.GAME_STATS, true)],
       ['返回初始界面', () => { void this.showHome(); }],
-    ]);
+    ], '图鉴／蛋／收藏', 'collection');
   }
 
-  private async browse(mode: Mode): Promise<void> {
+  private async showSettings(): Promise<void> {
+    const epoch = ++this.epoch;
+    this.scene.playSound?.('menu_open');
+    await this.display(epoch, Mode.SETTINGS, [{ onCancel: () => {
+      if (this.current(epoch)) void this.showHome();
+    } }]);
+  }
+
+  private async browse(mode: Mode, collection = false): Promise<void> {
     const epoch = ++this.epoch;
     await this.menu(epoch, [['正在读取，返回', () => { void this.showHome(); }]]);
     try {
@@ -166,7 +180,7 @@ export class HomePhase extends Phase {
         await this.menu(epoch, [['尚无个人资料，返回', () => { void this.showHome(); }]]);
         return;
       }
-      const onCancel = () => { if (this.current(epoch)) void this.showHome(); };
+      const onCancel = () => { if (this.current(epoch)) void (collection?this.showPersonal():this.showHome()); };
       const options = { readOnly: !writable, onCancel };
       await this.display(epoch, mode, mode === Mode.STARTER_SELECT ? [() => {}, options] : [options], view);
     } catch(error) {
@@ -205,7 +219,7 @@ export class HomePhase extends Phase {
       if(!this.current(epoch))return;
       await this.display(epoch,Mode.MESSAGE,[],view);
       await this.playDeferredHatches(view,epoch);
-      this.scene.playBgm?.('menu',false,this.music.signal);
+      this.scene.playBgm?.(titleMusic(),false,this.music.signal);
       if(this.current(epoch))await this.showHome();
     }catch(error){
       if(view&&this.scene.gameData!==view)await view.closeProfile().catch(()=>{});

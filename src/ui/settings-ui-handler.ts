@@ -11,7 +11,7 @@ import { SUPPORTED_LANGUAGE_ENTRIES, readLanguage, saveLanguage } from '../syste
 
 const settingLocaleKeys = {
   Language: 'language', Game_Speed: 'gameSpeed', Master_Volume: 'masterVolume', BGM_Volume: 'bgmVolume',
-  SE_Volume: 'seVolume', Damage_Numbers: 'damageNumbers', Show_Stats_on_Level_Up: 'showStatsOnLevelUp',
+  SE_Volume: 'seVolume', UI_Volume: 'uiVolume', Damage_Numbers: 'damageNumbers', Show_Stats_on_Level_Up: 'showStatsOnLevelUp',
   Window_Type: 'windowType', Tutorials: 'tutorials', Sprite_Set: 'spriteSet',
   Fusion_Palette_Swaps: 'fusionPaletteSwaps', Player_Gender: 'playerGender', Touch_Controls: 'touchControls', Vibration: 'vibrations'
 };
@@ -19,6 +19,7 @@ const optionLocaleKeys = { Mute: 'mute', Off: 'off', On: 'on', Simple: 'simple',
   Consistent: 'consistent', 'Prioritize Animation': 'prioritizeAnimation', Boy: 'boy', Girl: 'girl', Auto: 'auto', Disabled: 'disabled' };
 
 export default class SettingsUiHandler extends UiHandler {
+  private onCancel?: () => void;
   private settingsContainer: Phaser.GameObjects.Container;
   private optionsContainer: Phaser.GameObjects.Container;
 
@@ -112,6 +113,7 @@ export default class SettingsUiHandler extends UiHandler {
 
   show(args: any[]): boolean {
     super.show(args);
+    this.onCancel = args[0]?.onCancel;
     
     const settings: object = deviceStorage().hasOwnProperty('settings') ? JSON.parse(deviceStorage().getItem('settings')) : {};
 
@@ -136,7 +138,7 @@ export default class SettingsUiHandler extends UiHandler {
 
     if (button === Button.CANCEL) {
       success = true;
-      this.scene.ui.revertMode();
+      if (this.onCancel) this.onCancel(); else this.scene.ui.revertMode();
     } else {
       const cursor = this.cursor + this.scrollCursor;
       switch (button) {
@@ -246,6 +248,7 @@ export default class SettingsUiHandler extends UiHandler {
 
   clear() {
     super.clear();
+    this.onCancel = undefined;
     this.settingsContainer.setVisible(false);
     this.eraseCursor();
   }

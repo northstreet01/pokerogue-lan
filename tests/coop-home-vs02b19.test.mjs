@@ -52,6 +52,73 @@ test('original Title callbacks route once, obsolete callbacks cannot navigate, r
   assert.deepEqual(assigned,['/coop-play.html?fresh=1']);assert.equal(document.querySelector('#home-return'),null);
 });
 
+test('home settings return to the live home menu without replacing the profile view',async t=>{
+  const {p,scene,modes}=home(t);await settle(p);
+  const live=scene.gameData,sounds=[];scene.playSound=key=>sounds.push(key);
+  assert.ok(modes.at(-1)[1].options.some(o=>o.label==='游戏设置／音量'));
+  await p.showSettings();
+  assert.equal(modes.at(-1)[0],api.Mode.SETTINGS);
+  const cancel=modes.at(-1)[1].onCancel;
+  cancel();await p.homeReady;await p.transitions;
+  assert.equal(modes.at(-1)[0],api.Mode.TITLE);
+  assert.equal(scene.gameData,live);assert.deepEqual(sounds,['menu_open']);
+  await p.showPersonal();
+  assert.ok(modes.at(-1)[1].options.some(o=>o.label==='宝可梦图鉴'));
+});
+
+test('menu sound volume is independent and replay does not multiply a shared sound config',()=>{
+  const played=[],scene=Object.assign(Object.create(api.BattleScene.prototype),{
+    masterVolume:.5,uiVolume:.2,seVolume:.8,bgmVolume:.6,bgmCache:new Set(['menu']),
+    sound:{play:(key,config)=>played.push([key,config.volume]),get:()=>({})},
+  });
+  const config={volume:.5};
+  scene.playSound('select',config);scene.playSound('select',config);scene.playSound('hit',config);
+  assert.deepEqual(played,[['select',.05],['select',.05],['hit',.2]]);
+  assert.equal(config.volume,.5);
+  const sounds=['menu','menu_open','hit'].map(key=>({key,setVolume(volume){this.volume=volume;}}));
+  scene.sound.getAllPlaying=()=>sounds;scene.updateSoundVolume();
+  assert.deepEqual(sounds.map(s=>s.volume),[.3,.1,.4]);
+});
+
+test('grouped home and collection menus restore selected entries on return',async t=>{
+  const {p,modes}=home(t);await settle(p);
+  assert.equal(modes.at(-1)[1].options.length,6);
+  modes.at(-1)[1].options.find(o=>o.label==='图鉴／蛋／收藏').handler();await p.transitions;
+  assert.equal(modes.at(-1)[1].contextLabel,'图鉴／蛋／收藏');
+  modes.at(-1)[1].options.find(o=>o.label==='返回初始界面').handler();await p.homeReady;await p.transitions;
+  assert.equal(modes.at(-1)[1].initialIndex,3);
+  modes.at(-1)[1].options[3].handler();await p.transitions;
+  assert.equal(modes.at(-1)[1].initialIndex,6);
+});
+
+test('late music loads cannot replace a newer track or revive a retired scene',()=>{
+  const completed=[],played=[];
+  const scene=Object.assign(Object.create(api.BattleScene.prototype),{bgmCache:new Set(),arena:{bgm:'plains'},
+    masterVolume:1,bgmVolume:1,getBgmLoopPoint:()=>0,loadBgm(){},
+    load:{once:(_event,callback)=>completed.push(callback),isLoading:()=>true},
+    sound:{add:key=>({key,isPlaying:false,play(){played.push(key);this.isPlaying=true;},on(){},stop(){}})}});
+  scene.playBgm('title');scene.playBgm('menu');completed.splice(0).forEach(fn=>fn());
+  assert.deepEqual(played,['menu']);
+  const abort=new AbortController();scene.playBgm('title',false,abort.signal);abort.abort();completed.splice(0).forEach(fn=>fn());
+  assert.deepEqual(played,['menu']);
+  scene.playBgm('title');scene.appRetired=true;completed.splice(0).forEach(fn=>fn());
+  assert.deepEqual(played,['menu']);
+});
+
+test('remembered last menu option restores its scroll and a new short menu resets it',()=>{
+  let drawn=[];
+  const handler=Object.assign(Object.create(api.AbstractOptionSelectUiHandler.prototype),{
+    scrollCursor:4,scene:{ui:{bringToTop(){}}},optionSelectContainer:{setVisible(){}},
+    setupOptions(){drawn=this.getOptionsWithScroll().map(o=>o.label);},
+    cursorObj:{setPositionRelative(){}},optionSelectBg:{},
+  });
+  const options=Array.from({length:7},(_,i)=>({label:String(i),handler(){}}));
+  handler.show([{options,maxOptions:6,initialIndex:6}]);
+  assert.equal(drawn.at(-1),'6');assert.equal(handler.cursor+handler.scrollCursor-1,6);
+  handler.show([{options:options.slice(0,3),maxOptions:6}]);
+  assert.deepEqual(drawn,['0','1','2']);assert.equal(handler.cursor,0);assert.equal(handler.scrollCursor,0);
+});
+
 const keys=['data','sessionData','sessionData1','sessionData2','coop-profile-lease','coop-progression-v7','coop-progression-v6'];
 async function rawRecords() {
   const db=await new Promise((resolve,reject)=>{const q=factory.open('pokerogue-early-local',1);

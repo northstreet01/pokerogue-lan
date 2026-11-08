@@ -53,6 +53,9 @@ jobs:
       - name: Local save regression tests
         if: matrix.suite == 'foundation'
         run: npm run test:local-save
+      - name: Menu browsing, music and Pay Day regression tests
+        if: matrix.suite == 'foundation'
+        run: node --test --test-concurrency=1 tests/music-caption.test.mjs tests/starter-browser.test.mjs tests/pay-day.test.mjs
       - name: Desktop storage, transport and package replacement
         if: matrix.suite == 'foundation'
         run: npm run test:desktop

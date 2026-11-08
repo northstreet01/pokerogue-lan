@@ -231,6 +231,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
     return view;
   });
   root.modifiers = c.players.flatMap(p => p.modifiers);
+  root.getPayDayRewardScenes = () => views;
   const applyRootModifiers=root.applyModifiers;
   root.applyModifiers=function(type,player,...args){
     if(type===MoneyInterestModifier&&player){
@@ -431,7 +432,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
       schedule(callback);
     },
     showText: (text, _delay, callback, _callbackDelay?, _prompt?, _promptDelay?, metadata?) => {
-      const owner = root.currentPhase instanceof MoneyRewardPhase || root.currentPhase instanceof ModifierRewardPhase || root.currentPhase instanceof CheckSwitchPhase
+      const owner = root.currentPhase instanceof MessagePhase || root.currentPhase instanceof MoneyRewardPhase || root.currentPhase instanceof ModifierRewardPhase || root.currentPhase instanceof CheckSwitchPhase
         || root.currentPhase instanceof ExpPhase || root.currentPhase instanceof LevelUpPhase || root.currentPhase instanceof LearnMovePhase
         ? views.indexOf(root.currentPhase.scene) : -1;
       const phase = root.currentPhase;

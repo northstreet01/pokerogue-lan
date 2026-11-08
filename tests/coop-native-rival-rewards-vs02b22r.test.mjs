@@ -39,6 +39,23 @@ function assertRewards(c,before,ids=['EXP_SHARE','SUPER_EXP_CHARM']){
   for(const seat of [0,1])for(const id of ids)assert.equal(count(c,seat,id),count(before,seat,id)+1);
 }
 
+test('Pay Day coins remain personal across native worker restarts and settle at battle end',async()=>{
+  let h=await createOriginalRuleHost(route.config),c=structuredClone(route.beforeVictory);
+  c.battle.payDayMoney=[30,70];
+  try{
+    for(let n=0;n<160&&front(c)!=='SelectModifierPhase';n++){
+      const result=await progressDefault(h,c);c=result.checkpoint;
+      await h.close();h=await createOriginalRuleHost(route.config);
+    }
+    assert.equal(front(c),'SelectModifierPhase');
+    assert.equal(c.players[0].money,route.c.players[0].money+30);
+    assert.equal(c.players[1].money,route.c.players[1].money+70);
+    assert.equal(c.battle.payDayMoney,undefined);
+    const restored=api.originalDecisionStateCodec.restore(c);
+    assert.deepEqual(api.originalDecisionStateCodec.capture(restored),c);
+  }finally{await h.close();}
+});
+
 test('original rival fixed rewards complete for each owner and remain exact across every phase restart',async()=>{
   assertRewards(route.c,route.beforeVictory);
   let h=await createOriginalRuleHost(route.config),c=route.beforeVictory,events=[],sawFirstOnly=false;

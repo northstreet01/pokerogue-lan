@@ -5,6 +5,7 @@ import UiHandler from "./ui-handler";
 import { addWindow } from "./window";
 
 export interface OptionSelectConfig {
+  initialIndex?: number;
   contextLabel?: string;
   xOffset?: number;
   yOffset?: number;
@@ -94,6 +95,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     super.show(args);
 
     this.config = args[0] as OptionSelectConfig;
+    this.scrollCursor = 0;
     this.setupOptions();
 
     this.scene.ui.bringToTop(this.optionSelectContainer);
@@ -101,6 +103,16 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     this.optionSelectContainer.setVisible(true);
     this.scrollCursor = 0;
     this.setCursor(0);
+    const index=Math.min(Math.max(0,Math.trunc(this.config.initialIndex??0)),this.config.options.length-1);
+    if(index){
+      const limit=this.config.maxOptions;
+      if(limit&&this.config.options.length>limit&&index>=limit-1){
+        this.scrollCursor=Math.min(index-1,this.config.options.length-limit+1);this.setupOptions();
+      }
+      // Restoring is not an arrow-key wrap gesture.
+      this.cursor=index-this.scrollCursor+(this.scrollCursor?1:0);
+      this.setCursor(this.cursor);
+    }
 
     return true;
   }

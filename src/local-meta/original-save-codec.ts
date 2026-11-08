@@ -19,6 +19,7 @@ import { check, exact, json, uint } from './codec.mjs';
 import { AES, enc } from 'crypto-js';
 import {restorePokemonState} from '../field/pokemon';
 import {ORIGINAL_SAVE_VERSION} from '../system/save-version';
+import {validatePayDay} from '../battle-core/pay-day.mjs';
 
 const SYSTEM_KEYS = ['trainerId','secretId','gender','dexData','starterMoveData','starterEggMoveData','gameStats','unlocks',
   'achvUnlocks','voucherUnlocks','voucherCounts','eggs','gameVersion','timestamp'];
@@ -86,7 +87,8 @@ export const originalSaveCodec = Object.freeze({
   },
   session(input: unknown) {
     initializeCatalogs();
-    const s = json(input); exact(s, SESSION_KEYS); version(s);
+    const s = json(input); exact(s, [...SESSION_KEYS,...(Object.hasOwn(s,'payDayMoney')?['payDayMoney']:[])]); version(s);
+    if(Object.hasOwn(s,'payDayMoney')){validatePayDay(s.payDayMoney);check(s.payDayMoney[1]===0);}
     check(typeof s.seed === 'string' && s.seed.length > 0 && s.seed.length <= 256);
     counter(s.playTime); int(s.gameMode,0,3); int(s.money); counter(s.score); int(s.waveIndex,1); int(s.battleType,0,1);
     const ids = speciesIds();

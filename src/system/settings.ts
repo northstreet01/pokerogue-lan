@@ -11,6 +11,7 @@ export enum Setting {
   Master_Volume = "MASTER_VOLUME",
   BGM_Volume = "BGM_VOLUME",
   SE_Volume = "SE_VOLUME",
+  UI_Volume = "UI_VOLUME",
   Damage_Numbers = "DAMAGE_NUMBERS",
   Show_Stats_on_Level_Up = "SHOW_LEVEL_UP_STATS",
   Window_Type = "WINDOW_TYPE",
@@ -36,6 +37,7 @@ export const settingOptions: SettingOptions = {
   [Setting.Master_Volume]: new Array(11).fill(null).map((_, i) => i ? (i * 10).toString() : 'Mute'),
   [Setting.BGM_Volume]: new Array(11).fill(null).map((_, i) => i ? (i * 10).toString() : 'Mute'),
   [Setting.SE_Volume]: new Array(11).fill(null).map((_, i) => i ? (i * 10).toString() : 'Mute'),
+  [Setting.UI_Volume]: new Array(11).fill(null).map((_, i) => i ? (i * 10).toString() : 'Mute'),
   [Setting.Damage_Numbers]: [ 'Off', 'Simple', 'Fancy' ],
   [Setting.Show_Stats_on_Level_Up]: [ 'Off', 'On' ],
   [Setting.Window_Type]: new Array(4).fill(null).map((_, i) => (i + 1).toString()),
@@ -53,6 +55,7 @@ export const settingDefaults: SettingDefaults = {
   [Setting.Master_Volume]: 5,
   [Setting.BGM_Volume]: 10,
   [Setting.SE_Volume]: 10,
+  [Setting.UI_Volume]: 10,
   [Setting.Damage_Numbers]: 0,
   [Setting.Show_Stats_on_Level_Up]: 1,
   [Setting.Window_Type]: 0,
@@ -79,6 +82,10 @@ export function setSetting(scene: BattleScene, setting: Setting, value: integer)
       break;
     case Setting.SE_Volume:
       scene.seVolume = value ? parseInt(settingOptions[setting][value]) * 0.01 : 0;
+      scene.updateSoundVolume();
+      break;
+    case Setting.UI_Volume:
+      scene.uiVolume = value ? parseInt(settingOptions[setting][value]) * 0.01 : 0;
       scene.updateSoundVolume();
       break;
     case Setting.Damage_Numbers:

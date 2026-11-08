@@ -1,4 +1,5 @@
 {
+  "payDayMoneyPickedUp": "Picked up {{moneyAmount}} from Pay Day!",
   "bossAppeared": "{{bossName}} appeared!",
   "trainerAppeared": "{{trainerName}}\nwould like to battle!",
   "trainerAppearedDouble": "{{trainerName}}\nwould like to battle!",

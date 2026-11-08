@@ -84,6 +84,7 @@ interface SystemSaveData {
 }
 
 export interface SessionSaveData {
+  payDayMoney?: [number,number];
   seed: string;
   playTime: integer;
   gameMode: GameModes;
@@ -761,6 +762,7 @@ export class GameData {
       money: scene.money,
       score: scene.score,
       waveIndex: scene.currentBattle.waveIndex,
+      ...(scene.currentBattle.payDayMoney?{payDayMoney:[...scene.currentBattle.payDayMoney]}:{}),
       battleType: scene.currentBattle.battleType,
       trainer: scene.currentBattle.battleType == BattleType.TRAINER ? new TrainerData(scene.currentBattle.trainer) : null,
       gameVersion: ORIGINAL_SAVE_VERSION,
@@ -897,6 +899,7 @@ export class GameData {
           const trainerConfig = sessionData.trainer ? trainerConfigs[sessionData.trainer.trainerType] : null;
           const battle = scene.newBattle(sessionData.waveIndex, battleType, sessionData.trainer, battleType === BattleType.TRAINER ? trainerConfig?.doubleOnly || sessionData.trainer?.variant === TrainerVariant.DOUBLE : sessionData.enemyParty.length > 1);
           battle.enemyLevels = sessionData.enemyParty.map(p => p.level);
+          if(sessionData.payDayMoney)battle.payDayMoney=[sessionData.payDayMoney[0],sessionData.payDayMoney[1]];
 
           scene.newArena(sessionData.arena.biome, true);
 

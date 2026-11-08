@@ -335,37 +335,46 @@ export default class UI extends Phaser.GameObjects.Container {
 
   private setModeInternal(mode: Mode, clear: boolean, forceTransition: boolean, chainMode: boolean, args: any[], signal?: AbortSignal): Promise<void> {
     if((this.scene as BattleScene)?.appRetired)return Promise.resolve();
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       if (signal?.aborted) return resolve();
       if (this.mode === mode && !forceTransition) {
         resolve();
         return;
       }
+      const failTransition = (error: unknown) => {
+        this.cancelFade();
+        reject(error);
+      };
       const doSetMode = () => {
-        if((this.scene as BattleScene)?.appRetired){resolve();return;}
-        if (signal?.aborted) { this.cancelFade(); resolve(); return; }
-        if (this.mode !== mode) {
-          if (clear)
-            this.getHandler().clear();
-          if (chainMode && this.mode && !clear)
-            this.modeChain.push(this.mode);
-          this.mode = mode;
-          const touchControls = document.getElementById('touchControls');
-          if (touchControls)
-            touchControls.dataset.uiMode = Mode[mode];
-          this.getHandler().show(args);
+        try {
+          if((this.scene as BattleScene)?.appRetired){resolve();return;}
+          if (signal?.aborted) { this.cancelFade(); resolve(); return; }
+          if (this.mode !== mode) {
+            if (clear)
+              this.getHandler().clear();
+            if (chainMode && this.mode && !clear)
+              this.modeChain.push(this.mode);
+            this.mode = mode;
+            const touchControls = document.getElementById('touchControls');
+            if (touchControls)
+              touchControls.dataset.uiMode = Mode[mode];
+            this.getHandler().show(args);
+          }
+          resolve();
+          return true;
+        } catch (error) {
+          failTransition(error);
+          return false;
         }
-        resolve();
       };
       if (((!chainMode && ((transitionModes.indexOf(this.mode) > -1 || transitionModes.indexOf(mode) > -1)
         && (noTransitionModes.indexOf(this.mode) === -1 && noTransitionModes.indexOf(mode) === -1)))
         || (chainMode && noTransitionModes.indexOf(mode) === -1))) {
         this.fadeOut(250).then(() => {
           this.scene.time.delayedCall(100, () => {
-            doSetMode();
-            if (!signal?.aborted) this.fadeIn(250);
+            if (doSetMode() && !signal?.aborted) this.fadeIn(250).catch(failTransition);
           });
-        })
+        }).catch(failTransition);
       } else
         doSetMode();
     });

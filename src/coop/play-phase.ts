@@ -28,6 +28,7 @@ import {renderTeams,renderInventory,progressText,roomPlayerName} from './room-di
 import {captureRoomCatalog,roomSelectionData} from './room-catalog';
 import {beginLoading} from './loading-screen.mjs';
 import {recordCoopDiagnostic,exportCoopDiagnostics,flushCoopDiagnostics} from './diagnostics.mjs';
+import {titleMusic} from '../ui/music-caption.mjs';
 
 const RULES_VERSION = 'early-vs02';
 const CONTENT_HASH = 'vs02-original-coop';
@@ -124,7 +125,7 @@ export default class CoopPlayPhase extends Phase {
   start() {
     super.start();
     recordCoopDiagnostic('session-start',{desktop:!!desktopHost()});
-    this.scene.playBgm?.('menu', false, this.lobbyMusic.signal);
+    this.scene.playBgm?.(titleMusic(), false, this.lobbyMusic.signal);
     this.scene.enableTutorials = false; // Cooperative entry does not write solo tutorial flags.
     this.createOverlay();
     this.model = createOriginalClientModel({ restorePokemonState, capturePokemonState, restoreModifierState, captureModifierState });
@@ -218,6 +219,7 @@ export default class CoopPlayPhase extends Phase {
     this.overlay.className='room-lobby';
     const title = document.createElement('h1'); title.textContent = '联机冒险';
     this.status = document.createElement('div'); this.status.className = 'status'; this.status.textContent = '连接中…';
+    this.status.setAttribute('role', 'status');
     this.budget = document.createElement('div'); this.budget.className = 'status';
     this.roomLine = document.createElement('div'); this.roomLine.className = 'status';
     this.presenceLine=document.createElement('div');this.presenceLine.className='room-players';
@@ -280,9 +282,25 @@ export default class CoopPlayPhase extends Phase {
   }
   private button(label: string, handler: () => void, primary = false) {
     const button = document.createElement('button');
+    button.type = 'button';
     button.textContent = label; if (primary) button.className = 'primary';
-    button.addEventListener('click', () => { void Promise.resolve().then(() => { if (!this.disposed) return handler(); })
-      .catch(error => this.setStatus(hostConnectionError(error)??`操作失败：${error?.message ?? error}`, true)); }); return button;
+    // Native Enter/Space activation must not also confirm the Phaser menu below.
+    // Preserve the browser's click behaviour, then release focus for game input.
+    for (const type of ['keydown', 'keyup'] as const) button.addEventListener(type, event => {
+      if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+    });
+    button.addEventListener('click', () => {
+      if (this.disposed || button.disabled) return;
+      button.blur();
+      this.scene.playSound?.('select');
+      void Promise.resolve().then(() => { if (!this.disposed) return handler(); })
+        .catch(error => {
+          if (this.disposed) return;
+          this.scene.playSound?.('error');
+          this.setStatus(hostConnectionError(error)??`操作失败：${error?.message ?? error}`, true);
+        });
+    });
+    return button;
   }
   private renderLobbyControls() {
     if (this.disposed) return;
@@ -1732,6 +1750,7 @@ export default class CoopPlayPhase extends Phase {
     this.scene.scale?.refresh?.();
     const lifecycle = this.lifecycle;
     this.starterOpen = true;
+    this.scene.playBgm?.('menu',true,this.lobbyMusic.signal);
     this.draftFinal = false; this.confirmSelectionPending=false;
     const menuEpoch = ++this.starterMenuEpoch;
     const roomId = this.roomId, runId = this.runId;
@@ -1773,6 +1792,7 @@ export default class CoopPlayPhase extends Phase {
   }
 
   private closeStarterSelect() {
+    if(!this.disposed&&this.latest?.personal.decision.kind==='lobby')this.scene.playBgm?.(titleMusic(),true,this.lobbyMusic.signal);
     this.overlay?.classList.remove('selecting-team');
     this.scene.scale?.getParentBounds?.();
     this.scene.scale?.refresh?.();

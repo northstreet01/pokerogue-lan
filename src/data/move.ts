@@ -8,6 +8,7 @@ import { EncoreTag } from "./battler-tags";
 import { BattlerTagType } from "./enums/battler-tag-type";
 import { getPokemonMessage, getLocalizedPokemonMessage } from "../messages";
 import i18next from '../i18n';
+import {scatterPayDay} from '../battle-core/pay-day.mjs';
 import Pokemon, { AttackMoveResult, EnemyPokemon, HitResult, MoveResult, PlayerPokemon, PokemonMove, TurnMove } from "../field/pokemon";
 import { StatusEffect, getStatusEffectHealText } from "./status-effect";
 import { Type } from "./type";
@@ -413,6 +414,16 @@ export class MoveEffectAttr extends MoveAttr {
 
   apply(user: Pokemon, target: Pokemon, move: Move, args: any[]): boolean | Promise<boolean> {
     return this.canApply(user, target, move, args); 
+  }
+}
+
+export class PayDayAttr extends MoveEffectAttr {
+  constructor(){super(false,MoveEffectTrigger.HIT,true);}
+  apply(user:Pokemon,_target:Pokemon,_move:Move,_args:any[]):boolean {
+    if(!user.isPlayer())return false;
+    const scene=user.scene;
+    scatterPayDay(scene.currentBattle,(scene as any).nativeOwner??0,scene.getWaveMoneyAmount(0.2));
+    return true;
   }
 }
 
@@ -2726,7 +2737,8 @@ export function initMoves() {
       .punchingMove(),
     new AttackMove(Moves.MEGA_PUNCH, "Mega Punch", Type.NORMAL, MoveCategory.PHYSICAL, 80, 85, 20, "The target is slugged by a punch thrown with muscle-packed power.", -1, 0, 1)
       .punchingMove(),
-    new AttackMove(Moves.PAY_DAY, "Pay Day (P)", Type.NORMAL, MoveCategory.PHYSICAL, 40, 100, 20, "Numerous coins are hurled at the target to inflict damage. Money is earned after the battle.", -1, 0, 1)
+    new AttackMove(Moves.PAY_DAY, "Pay Day", Type.NORMAL, MoveCategory.PHYSICAL, 40, 100, 20, "Numerous coins are hurled at the target to inflict damage. Money is earned after the battle.", -1, 0, 1)
+      .attr(PayDayAttr)
       .makesContact(false),
     new AttackMove(Moves.FIRE_PUNCH, "Fire Punch", Type.FIRE, MoveCategory.PHYSICAL, 75, 100, 15, "The target is punched with a fiery fist. This may also leave the target with a burn.", 10, 0, 1)
       .attr(StatusEffectAttr, StatusEffect.BURN)

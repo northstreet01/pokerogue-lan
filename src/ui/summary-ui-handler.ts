@@ -368,6 +368,15 @@ export default class SummaryUiHandler extends UiHandler {
     return success || error;
   }
 
+  private bindMoveRow(target: Phaser.GameObjects.GameObject, index: number): void {
+    this.bindPointer(target, () => {
+      if(this.transitioning || this.cursor!==Page.MOVES || !this.pokemon
+        || index<4&&!this.pokemon.moveset[index])return false;
+      if(!this.moveSelect)this.showMoveSelect();
+      this.setCursor(index);
+    });
+  }
+
   setCursor(cursor: integer): boolean {
     let changed: boolean;
     
@@ -682,6 +691,8 @@ export default class SummaryUiHandler extends UiHandler {
           this.summaryUiMode === SummaryUiMode.LEARN_MOVE ? TextStyle.SUMMARY_PINK : TextStyle.SUMMARY);
         extraRowText.setOrigin(0, 1);
         this.extraMoveRowContainer.add(extraRowText);
+        const extraHit=this.scene.add.rectangle(-2,-14,204,16,0,0).setOrigin(0);
+        this.extraMoveRowContainer.add(extraHit);this.bindMoveRow(extraHit,4);
 
         if (this.summaryUiMode === SummaryUiMode.LEARN_MOVE) {
           const newMoveTypeIcon = this.scene.add.sprite(0, 0, 'types', Type[this.newMove.type].toLowerCase());
@@ -730,6 +741,8 @@ export default class SummaryUiHandler extends UiHandler {
           }
 
           moveRowContainer.add(ppText);
+          const rowHit=this.scene.add.rectangle(-2,-14,204,16,0,0).setOrigin(0);
+          moveRowContainer.add(rowHit);this.bindMoveRow(rowHit,m);
         }
 
         this.moveDescriptionText = addTextObject(this.scene, 2, 84, '', TextStyle.WINDOW, { wordWrap: { width: 1212 } });

@@ -41,7 +41,8 @@ beforeEach(async()=>{
 async function until(predicate){for(let i=0;i<500;i++){if(await predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('UI_WAIT_TIMEOUT');}
 function home(t){
   const runtime=api.createOriginalRuntime('local-meta-ui',{trainerId:1,secretId:2}),modes=[],texts=[],assigned=[];
-  const scene={game:{config:{gameVersion:'1.0.0'}},gameData:{untouched:true},events:{once(){}},fadeOutBgm(){},playBgm(){},
+  const appVersion=JSON.parse(readFileSync(new URL('../package.json',import.meta.url),'utf8')).version;
+  const scene={game:{config:{gameVersion:appVersion}},gameData:{untouched:true},events:{once(){}},fadeOutBgm(){},playBgm(){},
     executeWithSeedOffset:(fn,offset,seed)=>api.withOriginalRules(runtime.context,()=>runtime.scene.executeWithSeedOffset(fn,offset,seed)),
     ui:{fadeIn(){},clearText(){},getMode:()=>modes.at(-1)?.[0],showText(text){texts.push(text);},setMode:async(...args)=>{modes.push(args);}}};
   location.assign=url=>assigned.push(url);
@@ -78,6 +79,7 @@ test('new profile uses original initialization once, becomes active, and solo ro
   await until(async()=> (await api.profileRepository().list()).profiles.length===1);
   await until(()=>h.options()?.[0]?.label==='单人冒险');
   const index=await api.profileRepository().list(),p=await api.profileRepository().read(index.activeProfileId);
+  assert.equal(p.originalSystem.gameVersion,'1.0.0');
   assert.equal(p.displayName,'小霞');assert.equal(BigInt(p.originalSystem.dexData[1].caughtAttr),149n);
   assert.equal(p.originalSystem.eggs.length,0);assert.equal(p.soloRuns.length,0);
   assert.deepEqual(h.scene.gameData,{untouched:true});assert.deepEqual(JSON.parse(await api.readLocalSave('data')),base.system);
@@ -147,8 +149,10 @@ test('real solo form changes update ancestor dex legally and survive adventure s
         .generateType([pokemon],[api.FormChangeItem.MAX_MUSHROOMS]);
       g.scene.modifiers=[type.newModifier(pokemon)];
     }else g.scene.modifiers=[];
+    g.scene.currentBattle.payDayMoney=[50,0];
     assert.equal(await g.data.saveEncounter(g.scene),true,`species ${species}`);
     const saved=await r.read(p.profileId),session=saved.soloRuns[0].originalSession;
+    assert.deepEqual(session.payDayMoney,[50,0]);
     assert.equal(session.party[0].species,species);assert.equal(session.party[0].formIndex,1);
     assert.deepEqual(api.originalSaveCodec.session(session),session);
     for(const ancestor of species===812?[811,810]:[680,679]){
@@ -349,10 +353,10 @@ test('coop capture, solo capture and home dex reopen the same personal System in
   assert.deepEqual(await r.read(p.profileId),before);
 });
 
-test('home routes dex and original personal screens directly; profile slots use original view-only cards',async t=>{
+test('home groups dex and personal screens in collection; profile slots use original view-only cards',async t=>{
   const {r,p}=await created();await r.setActive(p.profileId);const h=home(t);
-  await h.p.showHome();assert.ok(h.options().some(o=>o.label==='宝可梦图鉴'));
-  await h.p.showPersonal();assert.deepEqual(h.options().slice(0,5).map(o=>o.label),['我的未孵化蛋','蛋扭蛋机','领取已完成孵化','成就','游戏统计']);
+  await h.p.showHome();assert.ok(h.options().some(o=>o.label==='图鉴／蛋／收藏'));
+  await h.p.showPersonal();assert.deepEqual(h.options().slice(0,6).map(o=>o.label),['宝可梦图鉴','我的未孵化蛋','蛋扭蛋机','领取已完成孵化','成就','游戏统计']);
   for(const mode of [api.Mode.ACHIEVEMENTS,api.Mode.GAME_STATS]){
     await h.p.browse(mode);assert.equal(h.last()[0],mode);assert.equal(typeof h.last()[1].onCancel,'function');
     h.last()[1].onCancel();await h.p.transitions;

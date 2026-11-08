@@ -2,7 +2,7 @@
 
 原版像素冒险，和朋友一起推进。基于 PokéRogue 历史版本制作的 **Windows 桌面单人／双人合作游戏**，玩家自己开房，本地加载图片、音乐和翻译。
 
-**1.0.0-beta.3 · Windows x64 测试版**
+**1.0.0-beta.4 · Windows x64 测试版**
 
 [下载游戏](https://github.com/northstreet01/pokerogue-lan/releases) · [反馈问题](https://github.com/northstreet01/pokerogue-lan/issues) · [更新记录](CHANGELOG.md)
 
@@ -12,7 +12,7 @@
 
 ## 下载与启动
 
-1. 在 Releases 下载 **PokeRogue-LAN-v1.0.0-beta.3-win32-x64.zip**。GitHub 自动提供的 Source code 是源码，不是游戏运行包。
+1. 在 Releases 下载 **PokeRogue-LAN-v1.0.0-beta.4-win32-x64.zip**。GitHub 自动提供的 Source code 是源码，不是游戏运行包。
 2. **完整解压** ZIP，运行其中的 **PokeRogue-LAN.exe**。无需安装 Node.js，也无需外部浏览器。
 3. 在大厅的“本地档案／存档管理”中创建或选择个人档案，再开始冒险。
 
@@ -89,7 +89,7 @@ Windows 数据目录为 `%APPDATA%\PokeRogue-LAN`，可从程序菜单打开。
 
 - 变形后前置进化图鉴形态标记越界导致的保存失败已修正，并完成全形态目录校验；Mega 与超极巨道具同时持有的冲突、动画及其他形态机制仍需单独验证。
 - 图图犬四个写生导致选队校验失败已修正；写生的全部战斗组合尚未完成验证。
-- 聚宝功当前有伤害效果，**尚未实现战后金币奖励**。
+- 聚宝功按楼层收益暂存金币，在战斗结束时领取；联机金币归使用者所属玩家，双方须使用同一构建版本。
 - 特殊招式、道具转移、形态和长局同步仍可能异常；资源释放和菜单优化不代表全部卡死已解决。
 - 经典路线当前自动推进；地图道具手动选路、Android 和自动房主迁移暂未完成。
 
@@ -102,7 +102,7 @@ Windows 数据目录为 `%APPDATA%\PokeRogue-LAN`，可从程序菜单打开。
 ```powershell
 git clone https://github.com/northstreet01/pokerogue-lan.git
 cd pokerogue-lan
-git checkout v1.0.0-beta.3
+git checkout v1.0.0-beta.4
 npm ci --ignore-scripts
 node node_modules/electron/install.js
 npm run build:desktop

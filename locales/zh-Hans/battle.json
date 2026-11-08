@@ -1,4 +1,5 @@
 {
+  "payDayMoneyPickedUp": "捡起了聚宝功散落的 {{moneyAmount}} 元！",
   "bossAppeared": "{{bossName}} 出现了。",
   "trainerAppeared": "{{trainerName}}\n想要和你对战！",
   "trainerAppearedDouble": "{{trainerName}}\n想要和你对战！",

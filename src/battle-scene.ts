@@ -7,6 +7,7 @@ import { getMaxExpLevel as calculateMaxExpLevel } from './battle-core/levels.mjs
 import UI, { Mode } from './ui/ui';
 import { NextEncounterPhase, NewBiomeEncounterPhase, SelectBiomePhase, MessagePhase, TurnInitPhase, ReturnPhase, LevelCapPhase, ShowTrainerPhase, LoginPhase, ConsolidateDataPhase, MovePhase, TitlePhase } from './phases';
 import CoopPlayPhase from './coop/play-phase';
+import {showMusicCaption} from './ui/music-caption.mjs';
 import { HomePhase, entryPhases } from './home-phase';
 import Pokemon, { PlayerPokemon, EnemyPokemon } from './field/pokemon';
 import PokemonSpecies, { PokemonSpeciesFilter, allSpecies, getPokemonSpecies, initSpecies } from './data/pokemon-species';
@@ -109,6 +110,7 @@ export default class BattleScene extends Phaser.Scene {
 	public masterVolume: number = 0.5;
 	public bgmVolume: number = 1;
 	public seVolume: number = 1;
+	public uiVolume: number = 1;
 	public gameSpeed: integer = 1;
 	public damageNumbersMode: integer = 0;
 	public showLevelUpStats: boolean = true;
@@ -174,6 +176,7 @@ export default class BattleScene extends Phaser.Scene {
 	public spritePipeline: SpritePipeline;
 
 	private bgm: AnySound;
+	private bgmRequest = 0;
 	private bgmResumeTimer: Phaser.Time.TimerEvent;
 	private bgmCache: Set<string> = new Set();
 	private playTimeTimer: Phaser.Time.TimerEvent;
@@ -771,6 +774,7 @@ export default class BattleScene extends Phaser.Scene {
 	getParty(): PlayerPokemon[] {
 		return this.party;
 	}
+	getPayDayRewardScenes(): BattleScene[] { return [this]; }
 
 	getPlayerPokemon(): PlayerPokemon {
 		return this.getPlayerField().find(p => p.isActive());
@@ -1430,10 +1434,14 @@ export default class BattleScene extends Phaser.Scene {
 
 	playBgm(bgmName?: string, fadeOut?: boolean, signal?: AbortSignal): void {
 		if (signal?.aborted) return;
+		const request=this.bgmRequest=(this.bgmRequest??0)+1;
+		const current=()=>!signal?.aborted&&!this.appRetired&&this.bgmRequest===request;
 		if (bgmName === undefined)
 			bgmName = this.currentBattle.getBgmOverride(this) || this.arena.bgm;
 		if (this.bgm && bgmName === this.bgm.key) {
-			if (!this.bgm.isPlaying) {
+      showMusicCaption(bgmName,this.masterVolume*this.bgmVolume===0);
+			if(this.bgm.isPaused && typeof this.bgm.resume==='function')this.bgm.resume();
+			else if (!this.bgm.isPlaying) {
 				this.bgm.play({
 					volume: this.masterVolume * this.bgmVolume
 				});
@@ -1450,7 +1458,7 @@ export default class BattleScene extends Phaser.Scene {
 			: this.getBgmLoopPoint(bgmName);
 		let loaded = false;
 		const playNewBgm = () => {
-			if (signal?.aborted) return;
+			if (!current()) return;
 			if (bgmName === null && this.bgm && !this.bgm.pendingRemove) {
 				this.bgm.play({
 					volume: this.masterVolume * this.bgmVolume
@@ -1463,18 +1471,21 @@ export default class BattleScene extends Phaser.Scene {
 			this.bgm.play({
 				volume: this.masterVolume * this.bgmVolume
 			});
-			if (loopPoint)
-				this.bgm.on('looped', () => this.bgm.play({ seek: loopPoint }));
+      showMusicCaption(bgmName,this.masterVolume*this.bgmVolume===0);
+			if (loopPoint) {
+        const playing=this.bgm;
+				playing.on('looped', () => {if(this.bgm===playing&&!this.appRetired)playing.play({ seek: loopPoint });});
+      }
 		};
 		this.load.once(Phaser.Loader.Events.COMPLETE, () => {
-			if (signal?.aborted) return;
+			if (!current()) return;
 			loaded = true;
 			if (!fadeOut || !this.bgm.isPlaying)
 				playNewBgm();
 		});
 		if (fadeOut) {
 			const onBgmFaded = () => {
-				if (signal?.aborted) return;
+				if (!current()) return;
 				if (loaded && (!this.bgm.isPlaying || this.bgm.pendingRemove))
 					playNewBgm();
 			};
@@ -1501,9 +1512,11 @@ export default class BattleScene extends Phaser.Scene {
 	}
 
 	updateSoundVolume(): void {
+    if(this.bgm)showMusicCaption(this.bgm.key,this.masterVolume*this.bgmVolume===0);
 		if (this.sound) {
 			for (let sound of this.sound.getAllPlaying())
-				(sound as AnySound).setVolume(this.masterVolume * (this.bgmCache.has(sound.key) ? this.bgmVolume : this.seVolume));
+				(sound as AnySound).setVolume(this.masterVolume * (this.bgmCache.has(sound.key) ? this.bgmVolume
+          : ['select', 'menu_open', 'error'].includes(sound.key) ? this.uiVolume : this.seVolume));
 		}
 	}
 
@@ -1520,13 +1533,16 @@ export default class BattleScene extends Phaser.Scene {
 	}
 
 	playSound(sound: string | AnySound, config?: object): AnySound {
+		const key = typeof sound === 'string' ? sound : sound.key;
+		const volume = this.masterVolume * (['select', 'menu_open', 'error'].includes(key) ? this.uiVolume : this.seVolume);
+		config = { ...config };
 		if (config) {
 			if (config.hasOwnProperty('volume'))
-				config['volume'] *= this.masterVolume * this.seVolume;
+				config['volume'] *= volume;
 			else
-				config['volume'] = this.masterVolume * this.seVolume;
+				config['volume'] = volume;
 		} else
-			config = { volume: this.masterVolume * this.seVolume };
+			config = { volume };
 		if (typeof sound === 'string') {
 			this.sound.play(sound, config);
 			return this.sound.get(sound) as AnySound;
@@ -1554,6 +1570,8 @@ export default class BattleScene extends Phaser.Scene {
 
 	getBgmLoopPoint(bgmName: string): number {
 		switch (bgmName) {
+      case 'title': return 46.5;
+      case 'winter_title': return 20.57;
 			case 'battle_kanto_champion':
 				return 13.950;
 			case 'battle_johto_champion':

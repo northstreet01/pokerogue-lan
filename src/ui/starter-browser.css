@@ -1,0 +1,10 @@
+#starter-browser{position:fixed;right:12px;bottom:64px;z-index:150;background:#f8f8e8;color:#343847;border:3px double #667082;padding:8px;font:14px system-ui;max-width:min(360px,90vw);box-sizing:border-box}
+#starter-browser summary{cursor:pointer;font-weight:bold}
+#starter-browser[open]{max-height:65dvh;overflow:auto}
+.starter-browser-controls{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+#starter-browser input[type=search]{width:100%;box-sizing:border-box}
+#starter-browser button,#starter-browser select,#starter-browser input{font:inherit;min-height:30px}
+.starter-browser-results{display:grid;gap:4px;margin:8px 0}
+.starter-browser-results button{text-align:left}
+#starter-browser :focus-visible{outline:2px solid #a66e00;outline-offset:2px}
+.starter-browser-detail{white-space:pre-wrap;font:inherit;border:1px solid #667082;padding:8px;max-height:30dvh;overflow:auto}

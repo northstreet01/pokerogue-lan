@@ -1,4 +1,5 @@
 import {readStoredCommandIntent} from './stored-command.mjs';
+import {validatePayDay} from './pay-day.mjs';
 import { captureModifierPoolState, restoreModifierPoolState } from './modifier-pool-state.mjs';
 import { createForcedSwitchDecision,createPreBattleSwitchDecision } from './switch-command.mjs';
 import { createLearnDecision } from './learn-command.mjs';
@@ -12,7 +13,7 @@ import { RandomDataGenerator, readBattleRandomCheckpoint, shiftSeed } from './ra
 
 const uint = v => Number.isSafeInteger(v) && v >= 0;
 const exact = (v, names) => check(v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).sort().join(',') === [...names].sort().join(','), 'INVALID_CHECKPOINT');
-export const battleCheckpointFields = Object.freeze(['gameMode','waveIndex','battleType','battleSpec','trainer','enemyLevels','enemyParty','seenEnemyPartyMemberIds','double','started','turn','turnCommands','playerParticipantIds','battleScore','postBattleLoot','escapeAttempts','lastMove','battleSeed','battleSeedState']);
+export const battleCheckpointFields = Object.freeze(['gameMode','waveIndex','battleType','battleSpec','trainer','enemyLevels','enemyParty','seenEnemyPartyMemberIds','double','started','turn','turnCommands','playerParticipantIds','battleScore','postBattleLoot','escapeAttempts','lastMove','battleSeed','battleSeedState','payDayMoney']);
 export const arenaCheckpointFields = Object.freeze(['scene','biomeType','weather','terrain','tags','bgm','ignoreAbilities','lastTimeOfDay','pokemonPool','trainerPool']);
 // Only bgm and the runtime scene reference are excluded from the arena projection.
 const battleScalars = ['waveIndex','battleType','battleSpec','double','started','turn','battleScore','escapeAttempts'];
@@ -188,6 +189,7 @@ export function createDecisionStateCodec({ roster, effects, Battle, Arena, getGa
     // Commands and trusted Phase descriptors are data; executable stacks are excluded.
     const snapshot = { version: withEggs?7:6,...(withEggs?{eggState:components.eggs.capture(context.eggState)}:{}), components: componentTable, modifierTypeGroups: [], commandTargetGroups:captureCommandTargetGroups(context),roster: roster.capture(context.roster),
       battle: b===null?null:{ ...Object.fromEntries(battleScalars.map(k => [k, b[k]])), gameMode: b.gameMode.modeId,
+        ...(b.payDayMoney!==undefined?{payDayMoney:validatePayDay(b.payDayMoney)}:{}),
         trainer: optional(b, 'trainer', v => encodeComponent('trainer', v)), enemyLevels: copy(b.enemyLevels),
         enemyParty: b.enemyParty.map(p => { check(context.roster.entries.some(e => e.pokemon === p && e.owner === null), 'INVALID_ENEMY_REFERENCE'); return p.id; }),
         seenEnemyPartyMemberIds: [...b.seenEnemyPartyMemberIds], playerParticipantIds: [...b.playerParticipantIds],
@@ -220,7 +222,7 @@ export function createDecisionStateCodec({ roster, effects, Battle, Arena, getGa
       if (!decoded.has(index)) decoded.set(index, decodeRaw(kind, entry.state));
       return decoded.get(index);
     };
-    if(s.battle!==null)exact(s.battle, [...battleScalars,'gameMode','trainer','enemyLevels','enemyParty','seenEnemyPartyMemberIds','playerParticipantIds','turnCommands','lastMove','postBattleLoot','random']);
+    if(s.battle!==null)exact(s.battle, [...battleScalars,'gameMode','trainer','enemyLevels','enemyParty','seenEnemyPartyMemberIds','playerParticipantIds','turnCommands','lastMove','postBattleLoot','random',...(Object.hasOwn(s.battle,'payDayMoney')?['payDayMoney']:[])]);
     exact(s.arena, [...arenaScalars,'weather','terrain','tags']); exact(s.scene, [...sceneFields,'gameMode','lastEnemyTrainer']);
     check(typeof s.scene.seed === 'string' && typeof s.scene.waveSeed === 'string' && uint(s.scene.waveCycleOffset) && typeof s.scene.offsetGym === 'boolean' && uint(s.scene.score), 'INVALID_SCENE');
     const result = { roster: roster.restore(s.roster), battle: s.battle===null?null:Object.create(Battle.prototype), arena: Object.create(Arena.prototype), scene: Object.fromEntries(sceneFields.map(k=>[k,s.scene[k]])), players: [], enemyModifiers: [], sceneRandom: new SceneRandom(s.sceneRandom), modifierPools: restoreModifierPoolState(s.modifierPools), decision: s.decision, pendingEffects: s.pendingEffects };
@@ -248,6 +250,7 @@ export function createDecisionStateCodec({ roster, effects, Battle, Arena, getGa
       check(ids.every(id => k === 'seenEnemyPartyMemberIds' ? byId.has(id) || result.roster.retiredIds.includes(id) : byId.has(id) && byId.get(id).owner !== null || result.roster.retiredIds.includes(id)), 'INVALID_PARTICIPANT'); b[k] = new Set(ids);
     }
     b.turnCommands = restoreTurnCommands(s.battle.turnCommands);
+    if(Object.hasOwn(s.battle,'payDayMoney'))b.payDayMoney=validatePayDay(s.battle.payDayMoney);
     restoreOptional(b, 'lastMove', s.battle.lastMove, v => { check(uint(v), 'INVALID_MOVE'); return v; });
     restoreOptional(b, 'trainer', s.battle.trainer, v => decodeComponent('trainer', v));
     check(b.battleType !== 1 || b.trainer, 'MISSING_TRAINER');
