@@ -150,12 +150,14 @@ async function openUiRoom(seat, t, lobbyOnly = false, prepared = null, homeEntry
     const home = new api.HomePhase(scene);
     // Original Home callbacks and original GameData read, with display ports only.
     ui.clearText = () => {};
-    await home.showHome(); modes.at(-1)[1].options.find(option=>option.label==='个人资料').handler(); await home.transitions;
+    await home.showHome(); modes.at(-1)[1].options.find(option=>option.label==='图鉴／蛋／收藏').handler(); await home.transitions;
     modes.at(-1)[1].options.find(option=>option.label==='蛋扭蛋机').handler();
     await until(() => ui.mode === api.Mode.EGG_GACHA, 'home personal vouchers');
     assert.equal(scene.gameData.voucherCounts[0], 4);
     assert.equal(modes.at(-1)[1].readOnly,true,'legacy collection without a selected profile stays read-only');
     modes.at(-1)[1].onCancel();
+    await until(()=>modes.at(-1)?.[1]?.options?.some(option=>option.label==='返回初始界面'),'collection after personal view');
+    modes.at(-1)[1].options.find(option=>option.label==='返回初始界面').handler();
     await until(()=>modes.at(-1)?.[1]?.options?.some(option=>option.label==='联机冒险'),'home after personal view');
     assert.equal(await api.readLocalSave('data'), bytes); assert.equal(scene.gameData, own);
     modes.at(-1)[1].options[1].handler();
