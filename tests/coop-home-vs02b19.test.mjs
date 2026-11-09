@@ -88,7 +88,9 @@ test('grouped home and collection menus restore selected entries on return',asyn
   modes.at(-1)[1].options.find(o=>o.label==='返回初始界面').handler();await p.homeReady;await p.transitions;
   assert.equal(modes.at(-1)[1].initialIndex,3);
   modes.at(-1)[1].options[3].handler();await p.transitions;
-  assert.equal(modes.at(-1)[1].initialIndex,6);
+  const collection=modes.at(-1)[1];
+  assert.ok(collection.options.some(o=>o.label==='糖果与永久降费'));
+  assert.equal(collection.initialIndex,collection.options.findIndex(o=>o.label==='返回初始界面'));
 });
 
 test('late music loads cannot replace a newer track or revive a retired scene',()=>{
