@@ -356,7 +356,7 @@ test('coop capture, solo capture and home dex reopen the same personal System in
 test('home groups dex and personal screens in collection; profile slots use original view-only cards',async t=>{
   const {r,p}=await created();await r.setActive(p.profileId);const h=home(t);
   await h.p.showHome();assert.ok(h.options().some(o=>o.label==='图鉴／蛋／收藏'));
-  await h.p.showPersonal();assert.deepEqual(h.options().slice(0,6).map(o=>o.label),['宝可梦图鉴','我的未孵化蛋','蛋扭蛋机','领取已完成孵化','成就','游戏统计']);
+  await h.p.showPersonal();assert.deepEqual(h.options().slice(0,7).map(o=>o.label),['宝可梦图鉴','糖果与永久降费','我的未孵化蛋','蛋扭蛋机','领取已完成孵化','成就','游戏统计']);
   for(const mode of [api.Mode.ACHIEVEMENTS,api.Mode.GAME_STATS]){
     await h.p.browse(mode);assert.equal(h.last()[0],mode);assert.equal(typeof h.last()[1].onCancel,'function');
     h.last()[1].onCancel();await h.p.transitions;

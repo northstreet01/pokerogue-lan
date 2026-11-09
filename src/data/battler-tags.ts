@@ -744,7 +744,7 @@ export class TruantTag extends AbilityBattlerTag {
   }
 
   lapse(pokemon: Pokemon, lapseType: BattlerTagLapseType): boolean {
-    if (pokemon.getAbility().id !== Abilities.TRUANT)
+    if (!pokemon.hasAbility(Abilities.TRUANT))
       return super.lapse(pokemon, lapseType);
 
     const lastMove = pokemon.getLastXMoves().find(() => true);
@@ -771,7 +771,7 @@ export class SlowStartTag extends AbilityBattlerTag {
   }
 
   lapse(pokemon: Pokemon, lapseType: BattlerTagLapseType): boolean {
-    if (pokemon.getAbility().id !== this.ability)
+    if (!pokemon.hasAbility(this.ability))
       this.turnCount = 1;
 
     return super.lapse(pokemon, lapseType);

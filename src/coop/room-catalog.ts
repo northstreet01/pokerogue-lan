@@ -10,7 +10,9 @@ export function validateRoomCatalog(input:any):any[] {
   const rows=json(input);check(Array.isArray(rows)&&rows.length<=allSpecies.length,'INVALID_ROOM_CATALOG');
   const seen=new Set();
   for(const r of rows){
-    exact(r,['speciesId','caughtAttr','natureAttr','ivs','eggMoves','caughtCount','hatchedCount']);
+    exact(r,['speciesId','caughtAttr','natureAttr','ivs','eggMoves','caughtCount','hatchedCount'],['valueReduction','passive']);
+    if(r.passive!==undefined)check(r.passive===true,'INVALID_ROOM_PASSIVE');
+    if(r.valueReduction!==undefined)check(Number.isInteger(r.valueReduction)&&r.valueReduction>=0&&r.valueReduction<=2,'INVALID_ROOM_REDUCTION');
     check(Object.prototype.hasOwnProperty.call(speciesStarters,r.speciesId)&&!seen.has(r.speciesId),'INVALID_ROOM_SPECIES');seen.add(r.speciesId);
     const species=getPokemonSpecies(r.speciesId);
     const mask=(1n<<BigInt(7+Math.max(species.forms.length,1)))-1n;
@@ -27,24 +29,27 @@ export function captureRoomCatalog(data:any):any[] {
   return validateRoomCatalog(Object.keys(speciesStarters).map(Number).filter(id=>data.dexData[id]?.caughtAttr)
     .map(speciesId=>{const d=data.dexData[speciesId];return {speciesId,caughtAttr:d.caughtAttr.toString(),
       natureAttr:d.natureAttr,ivs:[...d.ivs],eggMoves:data.starterEggMoveData[getPokemonSpecies(speciesId).getRootSpeciesId()]??0,
-      caughtCount:d.caughtCount,hatchedCount:d.hatchedCount};}));
+      caughtCount:d.caughtCount,hatchedCount:d.hatchedCount,...((data.starterCandyData?.[speciesId]??data.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.passive===2?{passive:true}:{}),...((data.starterCandyData?.[speciesId]??data.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.reduction?{valueReduction:(data.starterCandyData[speciesId]??data.starterCandyData[getPokemonSpecies(speciesId).getRootSpeciesId()]).reduction}:{})};}));
 }
-const price=(r:any)=>GameData.prototype.getSpeciesStarterValue.call({dexData:{[r.speciesId]:r}},r.speciesId);
+const price=(r:any)=>GameData.prototype.getSpeciesStarterValue.call({dexData:{[r.speciesId]:r},starterCandyData:{[r.speciesId]:{reduction:r.valueReduction??0}}},r.speciesId);
 export function mergeRoomCatalogs(catalogs:any[]):any[] {
   const byId=new Map<number,any>();
   for(const catalog of catalogs)for(const r of validateRoomCatalog(catalog)){
     const old=byId.get(r.speciesId);if(!old){byId.set(r.speciesId,r);continue;}
     const counters=price(r)<price(old)?r:old;
-    byId.set(r.speciesId,{...old,caughtAttr:(BigInt(old.caughtAttr)|BigInt(r.caughtAttr)).toString(),
+    const {valueReduction:ignored,...base}=old;
+    byId.set(r.speciesId,{...base,...(old.passive||r.passive?{passive:true}:{}),caughtAttr:(BigInt(old.caughtAttr)|BigInt(r.caughtAttr)).toString(),
       natureAttr:old.natureAttr|r.natureAttr,eggMoves:old.eggMoves|r.eggMoves,
-      ivs:old.ivs.map((v,i)=>Math.max(v,r.ivs[i])),caughtCount:counters.caughtCount,hatchedCount:counters.hatchedCount});
+      ivs:old.ivs.map((v,i)=>Math.max(v,r.ivs[i])),caughtCount:counters.caughtCount,hatchedCount:counters.hatchedCount,...(counters.valueReduction?{valueReduction:counters.valueReduction} :{})});
   }
   return [...byId.values()].sort((a,b)=>a.speciesId-b.speciesId);
 }
 export function roomSelectionData(original:any,catalog:any[]):any {
   const view=Object.create(original);view.dexData={...original.dexData};view.starterEggMoveData={...original.starterEggMoveData};
+  view.starterCandyData=structuredClone(original.starterCandyData??{});
   view.starterMoveData=structuredClone(original.starterMoveData);
   for(const r of validateRoomCatalog(catalog)){
+    view.starterCandyData[r.speciesId]={candies:0,friendship:0,reduction:r.valueReduction??0,...(r.passive?{passive:2}:{})};
     view.dexData[r.speciesId]={...view.dexData[r.speciesId],...r,caughtAttr:BigInt(r.caughtAttr),ivs:[...r.ivs]};
     const root=getPokemonSpecies(r.speciesId).getRootSpeciesId();
     view.starterEggMoveData[root]=(view.starterEggMoveData[root]??0)|r.eggMoves;
@@ -63,6 +68,8 @@ export function validateRoomSelection(profile:any,catalogs:any[]):boolean {
     check(u.caughtAttr===r.caughtAttr&&u.natureAttr===r.natureAttr&&u.eggMoves===r.eggMoves
       &&JSON.stringify(u.ivs)===JSON.stringify(r.ivs),'ROOM_UNLOCK_MISMATCH');
     check(cost.caughtCount===r.caughtCount&&cost.hatchedCount===r.hatchedCount,'ROOM_COST_MISMATCH');
+    check((cost.valueReduction??0)===(r.valueReduction??0),'ROOM_COST_MISMATCH');
+    check(!starter.passive||r.passive===true,'ROOM_PASSIVE_LOCKED');
   }
   return true;
 }

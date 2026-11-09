@@ -124,7 +124,7 @@ export function createOriginalCoopAdapter({ fixture, hostFactory = createOrigina
       const intent = {
         // Preserve old capture source IDs while giving new per-seat facts an
         // explicit owner key. A capture's converted roster ID is not a reward ID.
-        id: `${checkpoint.battle?.waveIndex ?? 0}:${raw.kind}:${['achievement-check','achievement-approved','voucher-pending','completion-pending','statistics','egg-progress','voucher-item'].includes(raw.kind)&&[0,1].includes(raw.owner)?raw.owner+':':''}${raw.sourcePokemonId ?? pokemonId ?? raw.waveIndex ?? raw.id ?? raw.kind}`
+        id: `${checkpoint.battle?.waveIndex ?? 0}:${raw.kind}:${['achievement-check','achievement-approved','voucher-pending','completion-pending','statistics','egg-progress','voucher-item','candy-friendship'].includes(raw.kind)&&[0,1].includes(raw.owner)?raw.owner+':':''}${raw.sourcePokemonId ?? pokemonId ?? raw.waveIndex ?? raw.id ?? raw.kind}`
           +(raw.factVersion===1&&['seen','evolution-pending','dex-ivs'].includes(raw.kind)?`:${raw.speciesId}:${raw.dexAttr??canonical(raw.ivs)}`:''),
         owner: [0, 1].includes(raw.owner) ? raw.owner : entry ? entry.owner : null,
         source: 'scene',
@@ -147,7 +147,7 @@ export function createOriginalCoopAdapter({ fixture, hostFactory = createOrigina
     if(!previous.provisioning.permanentResults)return result;
     const old=new Set(previous.intents.map(f=>f.id));
     const fresh=result.context.intents.filter(f=>!old.has(f.id)&&f.payload.factVersion===1);
-    const allowed=new Set(['seen','dex-ivs','capture-pending','evolution-pending','achievement-approved','voucher-pending','completion-pending','statistics','egg-progress','voucher-item']);
+    const allowed=new Set(['seen','dex-ivs','capture-pending','evolution-pending','achievement-approved','voucher-pending','completion-pending','statistics','egg-progress','voucher-item','candy-friendship']);
     result.grants=[0,1].flatMap(seat=>{
       const facts=fresh.filter(f=>allowed.has(f.type)&&(f.owner===seat||f.owner===null&&f.type==='seen'));
       if(!previous.checkpoint&&result.context.checkpoint)facts.push({id:'session-start',type:'session-start',

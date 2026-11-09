@@ -1,7 +1,7 @@
 // Original Pokemon rule-state slice, NOT a whole scene or a renderable Container.
 // Constructors, setters, init(), recalculation and effect hooks never run here.
 const base = {
-  id: 'uint32', species: 'species', formIndex: 'uint', abilityIndex: 'abilityIndex', shiny: 'bool', pokeball: 'ball',
+  passive: '?bool', id: 'uint32', species: 'species', formIndex: 'uint', abilityIndex: 'abilityIndex', shiny: 'bool', pokeball: 'ball',
   level: 'positive', exp: 'uint', levelExp: 'uint', gender: 'gender', hp: 'uint', stats: 'stats', ivs: 'ivs',
   nature: 'nature', moveset: 'moves', status: '?status', friendship: 'uint', metLevel: 'positive', metBiome: 'int',
   pauseEvolutions: '?bool', pokerus: 'bool', fusionSpecies: '?species', fusionFormIndex: '?uint',

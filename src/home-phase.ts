@@ -147,6 +147,7 @@ export class HomePhase extends Phase {
     const epoch = ++this.epoch;
     return this.menu(epoch, [
       ['宝可梦图鉴', () => this.browse(Mode.STARTER_SELECT, true)],
+      ['糖果与永久降费', () => this.browse(Mode.STARTER_SELECT, true, true)],
       ['我的未孵化蛋', () => this.browse(Mode.EGG_LIST, true)],
       ['蛋扭蛋机', () => this.browse(Mode.EGG_GACHA, true)],
       ['领取已完成孵化', () => { void this.finishEggHatches(); }],
@@ -164,13 +165,13 @@ export class HomePhase extends Phase {
     } }]);
   }
 
-  private async browse(mode: Mode, collection = false): Promise<void> {
+  private async browse(mode: Mode, collection = false, candy = false): Promise<void> {
     const epoch = ++this.epoch;
     await this.menu(epoch, [['正在读取，返回', () => { void this.showHome(); }]]);
     try {
       // Original parsing/consolidation runs on an isolated view. A late load may
       // finish after return, but cannot mutate the scene's live personal data.
-      const writable=mode===Mode.EGG_GACHA&&!!this.activeProfile;
+      const writable=(mode===Mode.EGG_GACHA||candy)&&!!this.activeProfile;
       const view = new GameData(this.scene, { readOnly: !writable });
       if(this.activeProfile)view.bindProfileIO(await openGameProfileIO(writable?profileRepository(()=>!this.disposed):this.repository(epoch),this.activeProfile,{readOnly:!writable,mode:'home'}));
       const exists = await view.loadSystem({ readOnly: true });
@@ -181,12 +182,12 @@ export class HomePhase extends Phase {
         return;
       }
       const onCancel = () => { if (this.current(epoch)) void (collection?this.showPersonal():this.showHome()); };
-      const options = { readOnly: !writable, onCancel };
+      const options = { readOnly: mode===Mode.STARTER_SELECT||!writable, onCancel };
       await this.display(epoch, mode, mode === Mode.STARTER_SELECT ? [() => {}, options] : [options], view);
     } catch(error) {
       recordDiagnostic('home-browse-failed',{code:diagnosticCode(error)});
       if (this.current(epoch)) await this.menu(epoch, [
-        ['个人资料读取失败，重试', () => { void this.browse(mode); }],
+        ['个人资料读取失败，重试', () => { void this.browse(mode,collection,candy); }],
         ['返回初始界面', () => { void this.showHome(); }],
       ]);
     }
@@ -246,7 +247,7 @@ export class HomePhase extends Phase {
         const pokemon=createCoopPokemonDisplay(this.scene,restorePokemonState(result.pokemon),true) as PlayerPokemon;
         pokemon.init();
         await new Promise<void>(resolve=>new EggHatchPhase(this.scene,
-          new Egg(result.egg.id,result.egg.gachaType,result.egg.hatchWaves,result.egg.timestamp),
+          Object.assign(new Egg(result.egg.id,result.egg.gachaType,result.egg.hatchWaves,result.egg.timestamp),result.egg),
           {pokemon,eggMoveIndex:result.eggMoveIndex,isCurrent:()=>this.current(epoch),onComplete:resolve}).start());
         if(!this.current(epoch))return;
         await view.acknowledgeHatch(result.id);

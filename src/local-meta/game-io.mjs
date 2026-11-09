@@ -145,6 +145,26 @@ export async function openGameProfileIO(repository, profileId, {mode='solo',read
         return p;
       }).then(next=>JSON.stringify(next.originalSystem));
     },
+    async commitCandyOperation(operationId,expected,nextSystem,kind='reduction'){
+      check(mode==='home'&&id(operationId),'CANDY_WRITER_REQUIRED');
+      check(['reduction','passive','toggle','egg'].includes(kind),'INVALID_CANDY_OPERATION');
+      const key='candy:'+operationId,payloadHash=await digest({expected:system(expected),next:system(nextSystem),kind});
+      return enqueue(p=>{
+        const old=p.grantLedger.find(g=>g.id===key);
+        if(old){check(old.payloadHash===payloadHash,'CANDY_OPERATION_CONFLICT');return p;}
+        check(JSON.stringify(p.originalSystem)===JSON.stringify(system(expected)),'LOCAL_REVISION_CONFLICT');
+        const before=system(expected),next=system(nextSystem),rest=json(next);
+        delete before.starterCandyData;delete rest.starterCandyData;
+        if(kind==='egg'){
+          check(next.eggs.length===before.eggs.length+1&&next.eggs.length<=99
+            &&JSON.stringify(next.eggs.slice(0,-1))===JSON.stringify(before.eggs),'CANDY_EGG_INVENTORY_CHANGED');
+          delete before.eggs;delete rest.eggs;
+        }
+        check(JSON.stringify(before)===JSON.stringify(rest),'CANDY_UNRELATED_MUTATION');
+        p.originalSystem=next;
+        p.grantLedger.push({id:key,sourceRunId:operationId,ownerProfileId:profileId,kind:'completion',payloadHash,revision:p.revision+1});return p;
+      }).then(p=>JSON.stringify(p.originalSystem));
+    },
     acknowledgeHatch(resultId){return enqueue(p=>{check(p.schemaVersion===2,'LOCAL_VERSION_MISMATCH');
       p.hatchResults=p.hatchResults.filter(r=>r.id!==resultId);return p;});},
     async read(key){assertAlive();if(key==='data')return JSON.stringify(profile.originalSystem);

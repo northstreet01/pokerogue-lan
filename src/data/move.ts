@@ -269,7 +269,7 @@ export default class Move {
   checkFlag(flag: MoveFlags, user: Pokemon, target: Pokemon): boolean {
     switch (flag) {
       case MoveFlags.MAKES_CONTACT:
-        if (user.getAbility().hasAttr(IgnoreContactAbAttr))
+        if (user.hasAbilityAttr(IgnoreContactAbAttr))
           return false;
         break;
     }
@@ -2567,7 +2567,7 @@ export class SwitchAbilitiesAttr extends MoveEffectAttr {
   }
 
   getCondition(): MoveConditionFunc {
-    return (user, target, move) => !target.getAbility().hasAttr(ProtectAbilityAbAttr);
+    return (user, target, move) => !target.hasAbilityAttr(ProtectAbilityAbAttr);
   }
 }
 

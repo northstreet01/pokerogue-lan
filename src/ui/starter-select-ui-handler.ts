@@ -519,6 +519,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
         types:Object.keys(Type).filter(key=>Number.isInteger(Number(key))&&Number(key)>=0)
           .map(key=>[key,i18next.t(`pokemonInfo:type.${Type[Number(key)].toLowerCase()}`,{defaultValue:Type[Number(key)]})]),
         storage:deviceStorage(),blocked:(id:number)=>!!this.starterSelectOptions.isSpeciesBlocked?.(id),
+        hasRibbon:(id:number)=>this.scene.gameData.hasClassicRibbon(id),
+        candyInfo:(id:number)=>this.scene.gameData.candyInfo(id),
+        onCandyAction:this.scene.gameData.canBuyCandyReduction?(id:number,kind:any)=>this.scene.gameData.purchaseCandyUpgrade(id,kind):undefined,
+        onReduceCost:this.scene.gameData.canBuyCandyReduction?(id:number)=>this.scene.gameData.purchaseCostReduction(id):undefined,
         describe:(species:PokemonSpecies)=>{
           const data=this.selectionData,dex=data.dexData[species.speciesId];
           const attrs=data.getSpeciesDexAttrProps(species,data.getSpeciesDefaultDexAttr(species));
@@ -528,6 +532,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
             '当前可选图鉴资料（房间共享不代表永久解锁）',
             `状态：${dex?.caughtAttr?'已解锁':dex?.seenAttr?'已遇见':'未解锁'} · 费用 ${data.getSpeciesStarterValue(species.speciesId)}`,
             `种族值总和：${species.baseTotal}`,
+            `本人经典通关缎带：${this.scene.gameData.hasClassicRibbon(species.speciesId)?'已获得':'未获得'}`,
             `默认特性：${ability.name}\n${ability.description}`,
             `最高IV（HP/攻击/防御/特攻/特防/速度）：${dex?.ivs?.join('/')??'暂无'}`,
             '蛋招：'+(eggs.length?eggs.map((id,index)=>`${mask&(1<<index)?'已解锁':'未解锁'} ${allMoves[id].name}`).join('\n'):'暂无'),

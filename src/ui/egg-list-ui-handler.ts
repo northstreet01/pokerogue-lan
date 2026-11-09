@@ -178,7 +178,7 @@ export default class EggListUiHandler extends MessageUiHandler {
 
   setEggDetails(egg: Egg): void {
     this.eggSprite.setFrame(`egg_${egg.getKey()}`);
-    this.eggNameText.setText(`Egg (${getEggDescriptor(egg)})`);
+    this.eggNameText.setText(egg.speciesId!==undefined?getEggGachaTypeDescriptor(this.scene,egg):`Egg (${getEggDescriptor(egg)})`);
     this.eggDateText.setText(
       new Date(egg.timestamp).toLocaleString(undefined, {
         weekday: 'short',

@@ -35,16 +35,118 @@ function original(seat=0){
   data.trainerId=seat+1;data.secretId=seat+10;data.gender=1;runtime.scene.gameData=data;
   return {runtime,data,system:JSON.parse(data.captureSystemData())};
 }
-async function writer(seat=0,store=createMetaStore({indexedDB:new IDBFactory()})){
+async function writer(seat=0,store=createMetaStore({indexedDB:new IDBFactory()}),mode='coop'){
   const base=original(seat),repo=createProfileRepository({store,codec});
   const profile=await repo.create(base.system),profileId=profile.profileId;
-  const io=await openGameProfileIO(repo,profileId,{mode:'coop'});base.data.bindProfileIO(io);
+  const io=await openGameProfileIO(repo,profileId,{mode});base.data.bindProfileIO(io);
   const binding={hostId:'test-host',runId:'test-run',roomId:'ABCDEF',seat,profileId,token:'private',isCurrent:()=>true};
   return {...base,repo,io,profileId,binding};
 }
 const grant=(id,facts,seat=0)=>({id,seat,payload:{version:1,facts}});
 const caught=(pokemon,kind='capture-pending')=>({kind,factVersion:1,owner:0,pokemonId:pokemon.id,
   speciesId:pokemon.species.speciesId,dexAttr:pokemon.getDexAttr().toString(),pokemon:api.capturePokemonState(pokemon)});
+
+test('passive unlock, toggle and same-species egg use the personal candy transaction',async()=>{
+ const e=await writer(0,undefined,'home');e.data.readonlyView=false;
+ try{
+  const system=structuredClone(e.system);system.starterCandyData={1:{candies:200,friendship:0,reduction:0}};
+  await e.io.writeSystem(system);await e.data.loadSystem({readOnly:true});
+  assert.equal(e.data.candyInfo(1).passiveAvailable,true);
+  await e.data.purchaseCandyUpgrade(1,'passive');assert.equal(e.data.starterCandyData[1].candies,165);assert.equal(e.data.starterCandyData[1].passive,2);
+  await e.data.purchaseCandyUpgrade(1,'toggle');assert.equal(e.data.starterCandyData[1].passive,1);assert.equal(e.data.starterCandyData[1].candies,165);
+  await e.data.purchaseCandyUpgrade(1,'toggle');
+  await e.data.purchaseCandyUpgrade(1,'egg');assert.equal(e.data.starterCandyData[1].candies,140);
+  const egg=e.data.eggs.at(-1);assert.equal(egg.speciesId,1);assert.equal(egg.hatchWaves,10);
+  const roundtrip=api.originalSaveCodec.system(JSON.parse(e.data.captureSystemData()));assert.equal(roundtrip.eggs.at(-1).speciesId,1);
+  e.runtime.scene.addPlayerPokemon=(...args)=>new api.PlayerPokemon(e.runtime.scene,...args,undefined);
+  const phase=new api.EggHatchPhase(e.runtime.scene,egg),pokemon=api.withOriginalRules(e.runtime.context,()=>phase.generatePokemon());assert.equal(pokemon.species.speciesId,1);
+  const again=api.withOriginalRules(e.runtime.context,()=>new api.EggHatchPhase(e.runtime.scene,egg).generatePokemon());assert.deepEqual(pokemon.ivs,again.ivs);assert.equal(pokemon.shiny,again.shiny);
+  const catalog=api.captureRoomCatalog(e.data),view=api.roomSelectionData(e.data,catalog);
+  const profile=api.captureProfileDraft(view,[{species:api.getPokemonSpecies(1),dexAttr:149n,nature:view.getNaturesForAttr(view.dexData[1].natureAttr)[0],pokerus:false}],catalog);
+  assert.equal(profile.starters[0].passive,true);api.validateRoomSelection(profile,[catalog]);
+  const selected=api.withOriginalRules(e.runtime.context,()=>api.constructSelectedStarterInstance(e.runtime,api.restoreStarterSelection(profile.starters[0])));assert.equal(selected.passive,true);
+  assert.equal(api.restorePokemonState(api.capturePokemonState(selected)).passive,true);
+ }finally{await e.data.closeProfile();}
+});
+
+test('enabled Huge Power passive applies beside the ordinary ability and survives checkpoint restore',async()=>{
+ const base=original(),p=api.constructOriginalPokemon(base.runtime,39,20),rules=api.abilityRules;
+ const normal=p.getAbility().id;p.passive=true;
+ assert.equal(p.getAbility().id,normal);assert.equal(p.getPassiveAbility().name,rules.allAbilities[rules.Abilities.HUGE_POWER].name);
+ const value={value:100};await rules.applyBattleStatMultiplierAbAttrs(rules.BattleStatMultiplierAbAttr,p,0,value);
+ assert.equal(value.value,200);assert.equal(p.getAbility().id,normal);
+ const restored=api.restorePokemonState(api.capturePokemonState(p));restored.scene=p.scene;
+ const after={value:100};await rules.applyBattleStatMultiplierAbAttrs(rules.BattleStatMultiplierAbAttr,restored,0,after);assert.equal(after.value,200);
+ delete restored.passive;const disabled={value:100};await rules.applyBattleStatMultiplierAbAttrs(rules.BattleStatMultiplierAbAttr,restored,0,disabled);assert.equal(disabled.value,100);
+});
+
+test('weather ability conditions and Cloud Nine suppression do not recurse through passive dispatch',()=>{
+ const base=original(),p=api.constructOriginalPokemon(base.runtime,39,20),other=api.constructOriginalPokemon(base.runtime,54,20),rules=api.abilityRules;
+ api.withOriginalRules(base.runtime.context,()=>{p.resetSummonData();other.resetSummonData();});
+ p.summonData.ability=rules.Abilities.SAND_VEIL;
+ p.scene.arena.weather=new api.weatherRules.Weather(api.weatherRules.WeatherType.SANDSTORM,5);
+ p.scene.getField=()=>[p];assert.ok(p.getBattleAbilities().some(a=>a.id===rules.Abilities.SAND_VEIL));
+ other.summonData.ability=rules.Abilities.CLOUD_NINE;other.scene=p.scene;
+ p.scene.getField=()=>[p,other];assert.equal(p.getBattleAbilities().some(a=>a.id===rules.Abilities.SAND_VEIL),false);
+});
+
+test('failed same-species egg and passive purchases keep their staged result and never double debit',async()=>{
+ const base=createMetaStore({indexedDB:new IDBFactory()});let fail=false;
+ const store={read:base.read,transact:(keys,fn)=>{if(fail)throw Error('DISK_FAILURE');return base.transact(keys,fn);}};
+ const e=await writer(0,store,'home');e.data.readonlyView=false;
+ try{
+  const system=structuredClone(e.system);system.starterCandyData={1:{candies:100,friendship:0,reduction:0}};
+  await e.io.writeSystem(system);await e.data.loadSystem({readOnly:true});
+  fail=true;await assert.rejects(e.data.purchaseCandyUpgrade(1,'egg'),/DISK_FAILURE/);
+  const staged=structuredClone(e.data.pendingCandy.next.eggs[0]);
+  assert.equal(e.data.eggs.length,0);assert.equal(e.data.starterCandyData[1].candies,100);
+  fail=false;await e.data.purchaseCandyUpgrade(1,'egg');assert.equal(e.data.eggs[0].id,staged.id);
+  assert.equal(e.data.starterCandyData[1].candies,75);
+  fail=true;await assert.rejects(e.data.purchaseCandyUpgrade(1,'passive'),/DISK_FAILURE/);
+  assert.equal(e.data.starterCandyData[1].passive,undefined);assert.equal(e.data.starterCandyData[1].candies,75);
+  fail=false;await e.data.purchaseCandyUpgrade(1,'passive');
+  assert.equal(e.data.starterCandyData[1].candies,40);assert.equal(e.data.starterCandyData[1].passive,2);
+  const saved=await e.repo.read(e.profileId);assert.equal(saved.grantLedger.filter(g=>g.id.startsWith('candy:')).length,2);
+  assert.equal(saved.originalSystem.eggs[0].speciesId,1);
+ }finally{fail=false;await e.data.closeProfile();}
+});
+
+test('owned captures, hatches, evolution and friendship award root candy without replay duplication',async()=>{
+ const e=await writer();try{
+  const pokemon=api.constructOriginalPokemon(e.runtime,6,40);pokemon.shiny=true;
+  await e.data.applyCoopResults([grant('candy-capture',[caught(pokemon)])],e.binding);
+  assert.equal(e.data.starterCandyData[4].candies,5);assert.equal(e.data.starterCandyData[6],undefined);
+  await e.data.applyCoopResults([grant('candy-capture',[caught(pokemon)])],e.binding);
+  await e.data.applyCoopResults([grant('candy-evolution',[caught(pokemon,'evolution-pending')])],e.binding);
+  assert.equal(e.data.starterCandyData[4].candies,5);
+  const friendship=grant('candy-friendship',[{kind:'candy-friendship',owner:0,speciesId:4,points:80}]);
+  await e.data.applyCoopResults([friendship],e.binding);await e.data.applyCoopResults([friendship],e.binding);
+  assert.deepEqual(e.data.starterCandyData[4],{candies:6,friendship:5,reduction:0});
+  const legacy=JSON.parse(e.data.captureSystemData());delete legacy.starterCandyData;api.originalSaveCodec.system(legacy);
+ }finally{await e.data.closeProfile();}
+});
+
+test('home candy purchase survives failed writes, spends once on retry and projects the reduced room price',async()=>{
+ const base=createMetaStore({indexedDB:new IDBFactory()});let fail=false;
+ const store={read:base.read,transact:(keys,fn)=>{if(fail)throw Error('DISK_FAILURE');return base.transact(keys,fn);}};
+ const e=await writer(0,store,'home');e.data.readonlyView=false;
+ try{
+  const system=structuredClone(e.system);system.starterCandyData={1:{candies:100,friendship:0,reduction:0}};
+  await e.io.writeSystem(system);await e.data.loadSystem({readOnly:true});
+  const before=await e.repo.read(e.profileId);fail=true;
+  await assert.rejects(e.data.purchaseCostReduction(1),/DISK_FAILURE/);
+  assert.equal(e.data.starterCandyData[1].candies,100);assert.deepEqual(await e.repo.read(e.profileId),before);
+  fail=false;await e.data.purchaseCostReduction(1);
+  assert.equal(e.data.getSpeciesStarterValue(1),2);assert.equal(e.data.starterCandyData[1].candies,80);
+  const catalog=api.captureRoomCatalog(e.data),other=original(1),union=api.mergeRoomCatalogs([catalog,api.captureRoomCatalog(other.data)]);
+  const view=api.roomSelectionData(other.data,union);assert.equal(view.getSpeciesStarterValue(1),2);
+  assert.equal(other.data.getSpeciesStarterValue(1),3);assert.equal(other.data.starterCandyData[1],undefined);
+  const selection={species:api.getPokemonSpecies(1),dexAttr:149n,nature:view.getNaturesForAttr(view.dexData[1].natureAttr)[0],pokerus:false};
+  const profile=api.captureProfileDraft(view,[selection],catalog);assert.equal(api.priceProfileDraft(profile).total,2);
+  api.validateRoomSelection(profile,[catalog,api.captureRoomCatalog(other.data)]);
+  const saved=(await e.repo.read(e.profileId)).originalSystem;assert.equal(saved.starterCandyData[1].candies,80);
+ }finally{fail=false;await e.data.closeProfile();}
+});
 test('original collection methods replay recursive captures, IVs and evolution without importing room unlocks or consuming eggs',async()=>{
   const e=await writer();
   try{
@@ -103,6 +205,41 @@ test('first and repeat boss/victory vouchers use original award rules exactly on
     await e.data.applyCoopResults([grant('victory-repeat',[completion,voucher])],e.binding);
   }finally{await e.data.closeProfile();}
 });
+test('solo GameOver awards the final party only for a successful classic victory',async()=>{
+  for(const [victory,isClassic,success,expected] of [[true,true,true,[4,5,6]],[false,true,true,[]],[true,false,true,[]],[true,true,false,[]]]){
+    const {data}=original();let saved;
+    const scene={gameData:data,gameMode:{isClassic},sessionSlotId:0,getParty:()=>[{species:api.getPokemonSpecies(6),hp:0}],
+      time:{delayedCall:(_ms,fn)=>fn()},validateAchv:()=>true,fadeOutBgm(){},ui:{fadeOut:()=>new Promise(()=>{})}};
+    data.tryClearSession=async()=>[true,success];data.saveSystem=async()=>{saved=JSON.parse(data.captureSystemData());return true;};
+    new api.GameOverPhase(scene,victory).start();await new Promise(setImmediate);
+    assert.deepEqual(saved.classicRibbonSpecies,expected);
+  }
+});
+
+test('classic ribbons commit with owned completion receipts, survive reload and never unlock borrowed species',async()=>{
+  const e=await writer();
+  const completion={kind:'completion-pending',owner:0,achievementId:'CLASSIC_VICTORY',sessionsWon:1,
+    unlockCandidates:[],mode:0,ribbonSpecies:[6]};
+  try{
+    const before=e.data.dexData[6].caughtAttr;
+    await e.data.applyCoopResults([grant('ribbon-clear',[completion])],e.binding);
+    assert.deepEqual(e.data.classicRibbonSpecies,[4,5,6]);
+    assert.equal(e.data.dexData[6].caughtAttr,before);
+    await e.data.applyCoopResults([grant('ribbon-clear',[completion])],e.binding);
+    assert.equal(e.data.gameStats.sessionsWon,1);
+    assert.deepEqual((await e.repo.read(e.profileId)).originalSystem.classicRibbonSpecies,[4,5,6]);
+    await e.data.loadSystem({readOnly:true});assert.equal(e.data.hasClassicRibbon(6),true);
+    const snapshot=(await e.repo.read(e.profileId)).originalSystem;
+    const legacy=structuredClone(snapshot);delete legacy.classicRibbonSpecies;
+    assert.equal(Object.hasOwn(api.originalSaveCodec.system(legacy),'classicRibbonSpecies'),false);
+    assert.throws(()=>api.originalSaveCodec.system({...snapshot,classicRibbonSpecies:[999999]}),/INVALID_CLASSIC_RIBBONS/);
+    await assert.rejects(e.data.applyCoopResults([grant('ribbon-wrong-owner',[{...completion,owner:1}])],e.binding),/OWNER_MISMATCH/);
+    await assert.rejects(e.data.applyCoopResults([grant('ribbon-wrong-mode',[{...completion,mode:1}])],e.binding),/INVALID_RIBBON_MODE/);
+    assert.deepEqual((await e.repo.read(e.profileId)).originalSystem,snapshot);
+    await e.data.applyCoopResults([grant('ribbon-clear',[completion])],e.binding);
+  }finally{await e.data.closeProfile();}
+});
+
 test('real Worker grants new encounter facts to both seats and never backfills restored old pending facts',async()=>{
   const adapter=createPlayerHostAdapter({seedFactory:()=> 'permanent-worker'});
   try{
@@ -310,7 +447,7 @@ test('real Host/Worker egg phase defers both owners and survives formal disk fai
   let env;
   try{
     for(const [seat,p] of players.entries()){
-      const system=structuredClone(p.system);system.eggs=[{id:12345+seat,gachaType:seat,hatchWaves:1,timestamp:1700000000000}];
+      const system=structuredClone(p.system);system.eggs=[{id:12345+seat,gachaType:seat,hatchWaves:1,timestamp:1700000000000,speciesId:seat?4:1}];
       await p.io.writeSystem(system);await p.data.loadSystem({readOnly:true});
     }
     const catalogs=players.map(p=>api.captureRoomCatalog(p.data)),union=api.mergeRoomCatalogs(catalogs);
@@ -351,6 +488,7 @@ test('real Host/Worker egg phase defers both owners and survives formal disk fai
     assert.ok(snapshots.every(s=>s.grants.some(g=>g.payload.facts.some(f=>f.kind==='egg-progress'))));
     await Promise.all(snapshots.map((s,i)=>consumers[i](s)));
     const saved=await players[1].repo.read(players[1].profileId);assert.equal(saved.originalSystem.eggs[0].hatchWaves,0);assert.equal(saved.deferredHatches[0].state,'waiting-terminal');
+    assert.equal(saved.originalSystem.eggs[0].speciesId,4);
     drop=false;await consumers[1](snapshots[1]);assert.deepEqual(await players[1].repo.read(players[1].profileId),saved);
     assert.ok(!JSON.stringify(snapshots[0]).includes('12346'),'peer egg IDs remain private');
   }finally{await env?.close();await adapter.closeAll();for(const p of players)await p.data.closeProfile();}

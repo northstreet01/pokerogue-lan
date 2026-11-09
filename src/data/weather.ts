@@ -106,7 +106,7 @@ export class Weather {
     const field = scene.getField(true);
 
     for (let pokemon of field) {
-      const suppressWeatherEffectAbAttr = pokemon.getAbility().getAttrs(SuppressWeatherEffectAbAttr).find(() => true) as SuppressWeatherEffectAbAttr;
+      const suppressWeatherEffectAbAttr = pokemon.getBattleAbilities(SuppressWeatherEffectAbAttr).flatMap(a=>a.getAttrs(SuppressWeatherEffectAbAttr)).find(() => true) as SuppressWeatherEffectAbAttr;
       if (suppressWeatherEffectAbAttr && (!this.isImmutable() || suppressWeatherEffectAbAttr.affectsImmutable))
         return true;
     }

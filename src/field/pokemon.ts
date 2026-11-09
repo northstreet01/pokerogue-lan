@@ -1,6 +1,7 @@
 import { applyPokemonMove } from '../battle-core/move-damage.mjs';
 import Phaser from 'phaser';
 import i18next from '../i18n';
+import {currentAbility,bindAbility} from '../battle-core/ability-context.mjs';
 import BattleScene, { AnySound } from '../battle-scene';
 import BattleInfo, { PlayerBattleInfo, EnemyBattleInfo } from '../ui/battle-info';
 import { Moves } from "../data/enums/moves";
@@ -28,7 +29,7 @@ import { TempBattleStat } from '../data/temp-battle-stat';
 import { WeakenMoveTypeTag } from '../data/arena-tag';
 import { ArenaTagType } from "../data/enums/arena-tag-type";
 import { Biome } from "../data/enums/biome";
-import { Abilities, Ability, BattleStatMultiplierAbAttr, BlockCritAbAttr, BypassBurnDamageReductionAbAttr, FieldVariableMovePowerAbAttr, IgnoreOpponentStatChangesAbAttr, MoveImmunityAbAttr, NonSuperEffectiveImmunityAbAttr, PreApplyBattlerTagAbAttr, PreDefendEndureAbAttr, ReceivedMoveDamageMultiplierAbAttr, ReduceStatusEffectDurationAbAttr, StabBoostAbAttr, StatusEffectImmunityAbAttr, TypeImmunityAbAttr, VariableMovePowerAbAttr, WeightMultiplierAbAttr, allAbilities, applyAbAttrs, applyBattleStatMultiplierAbAttrs, applyPostDefendAbAttrs, applyPreApplyBattlerTagAbAttrs, applyPreAttackAbAttrs, applyPreDefendAbAttrs, applyPreSetStatusAbAttrs } from '../data/ability';
+import { getSpeciesPassive, Abilities, Ability, BattleStatMultiplierAbAttr, BlockCritAbAttr, BypassBurnDamageReductionAbAttr, FieldVariableMovePowerAbAttr, IgnoreOpponentStatChangesAbAttr, MoveImmunityAbAttr, NonSuperEffectiveImmunityAbAttr, PreApplyBattlerTagAbAttr, PreDefendEndureAbAttr, ReceivedMoveDamageMultiplierAbAttr, ReduceStatusEffectDurationAbAttr, StabBoostAbAttr, StatusEffectImmunityAbAttr, TypeImmunityAbAttr, VariableMovePowerAbAttr, WeightMultiplierAbAttr, allAbilities, applyAbAttrs, applyBattleStatMultiplierAbAttrs, applyPostDefendAbAttrs, applyPreApplyBattlerTagAbAttrs, applyPreAttackAbAttrs, applyPreDefendAbAttrs, applyPreSetStatusAbAttrs } from '../data/ability';
 import PokemonData from '../system/pokemon-data';
 import { BattlerIndex } from '../battle';
 import { BattleSpec } from "../enums/battle-spec";
@@ -76,6 +77,7 @@ export default abstract class Pokemon extends Phaser.GameObjects.Container {
   public moveset: PokemonMove[];
   public status: Status;
   public friendship: integer;
+  declare public passive?: boolean;
   public metLevel: integer;
   public metBiome: Biome | -1;
   public pauseEvolutions: boolean;
@@ -128,6 +130,7 @@ export default abstract class Pokemon extends Phaser.GameObjects.Container {
       this.shiny = shiny;
     this.exp = dataSource?.exp || getLevelTotalExp(this.level, species.growthRate);
     this.levelExp = dataSource?.levelExp || 0;
+    if(dataSource?.passive)this.passive=true;
     if (dataSource) {
       this.id = dataSource.id;
       this.hp = dataSource.hp;
@@ -549,7 +552,7 @@ export default abstract class Pokemon extends Phaser.GameObjects.Container {
       let value = Math.floor(((2 * baseStat + this.ivs[s]) * this.level) * 0.01);
       if (isHp) {
         value = value + this.level + 10;
-        if (this.getAbility().hasAttr(NonSuperEffectiveImmunityAbAttr))
+        if (this.hasAbilityAttr(NonSuperEffectiveImmunityAbAttr))
           value = 1;
         if (this.hp > value || this.hp === undefined)
           this.hp = value;
@@ -674,7 +677,20 @@ export default abstract class Pokemon extends Phaser.GameObjects.Container {
     return !!this.getTypes(true, forDefend).find(t => t === type);
   }
 
-  getAbility(ignoreOverride?: boolean): Ability {
+  static passiveForSpecies(id:number,form=0):Ability|null{return getSpeciesPassive(id,form);}
+  getPassiveAbility():Ability|null {return this.passive?getSpeciesPassive(this.species.speciesId,this.formIndex):null;}
+  getBattleAbilities(attrType?:any):Ability[]{
+    const normal=this.getAbility(false,true),passive=this.getPassiveAbility();
+    return [normal,...(passive&&passive.id!==normal.id?[passive]:[])].filter(ability=>{
+      if(attrType&&!ability.hasAttr(attrType))return false;
+      const release=bindAbility(this,ability);
+      try{return !(ability.isIgnorable&&this.scene.arena.ignoreAbilities)&&(!!this.hp||ability.isPassive)&&!ability.conditions.some(c=>!c(this));}finally{release();}
+    });
+  }
+  hasAbility(id:number):boolean{return this.getBattleAbilities().some(a=>a.id===id);}
+  hasAbilityAttr(type:any):boolean{return this.getBattleAbilities(type).length>0;}
+  getAbility(ignoreOverride?: boolean,ignoreContext=false): Ability {
+    if(!ignoreContext&&currentAbility(this))return currentAbility(this);
     if (!ignoreOverride && this.summonData?.ability)
       return allAbilities[this.summonData.ability];
     if (ABILITY_OVERRIDE && this.isPlayer())

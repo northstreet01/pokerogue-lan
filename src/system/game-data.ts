@@ -1,6 +1,10 @@
 import {deviceStorage} from '../platform/preferences.mjs';
 import {recordDiagnostic,diagnosticCode} from '../diagnostics.mjs';
 import {ORIGINAL_SAVE_VERSION} from './save-version';
+import {emptyCandy,validateCandy,legacyReduction,reducedCost,addCandy,addCandyFriendship,buyReduction,candyFriendshipParts,reductionPrices,friendshipCaps} from './starter-candy.mjs';
+import {awardClassicRibbons,validateClassicRibbons} from './classic-ribbons.mjs';
+import {passivePrices,sameSpeciesEggPrice} from './starter-candy.mjs';
+import {EggTier} from '../data/enums/egg-type';
 import BattleScene, { PokeballCounts, bypassLogin } from "../battle-scene";
 import i18next from '../i18n';
 import Pokemon, { EnemyPokemon, PlayerPokemon, restorePokemonState, capturePokemonState } from "../field/pokemon";
@@ -19,7 +23,7 @@ import { trainerConfigs } from "../data/trainer-config";
 import { Setting, setSetting, settingDefaults } from "./settings";
 import { achvs } from "./achv";
 import EggData from "./egg-data";
-import { Egg, GachaType, drawGachaEggs } from "../data/egg";
+import { Egg, GachaType, drawGachaEggs,EGG_SEED,getEggTierDefaultHatchWaves } from "../data/egg";
 import { EggHatchPhase } from '../egg-hatch-phase';
 import {canonical} from '../battle-core/coop-contract.mjs';
 import { VoucherType, vouchers } from "./voucher";
@@ -67,6 +71,8 @@ export function getDataTypeKey(dataType: GameDataType, slotId: integer = 0): str
 }
 
 interface SystemSaveData {
+  starterCandyData?: any;
+  classicRibbonSpecies?: number[];
   trainerId: integer;
   secretId: integer;
   gender: PlayerGender;
@@ -298,6 +304,73 @@ export class GameData {
   public starterMoveData: StarterMoveData;
 
   public starterEggMoveData: StarterEggMoveData;
+  public classicRibbonSpecies: number[] = [];
+  public starterCandyData: any = {};
+  private candyBusy = false;
+  private pendingCandy: any;
+  public get canBuyCandyReduction(): boolean { return !!this.profileIO && this.profileIO.mode==='home' && !this.readonlyView && !this.profileClosing; }
+  public candyInfo(speciesId:number): any {
+    speciesId=getPokemonSpecies(speciesId).getRootSpeciesId();
+    const e=this.starterCandyData?.[speciesId]??emptyCandy(),cost=speciesStarters[speciesId],dex=this.dexData[speciesId];
+    const tier=Math.max(e.reduction,legacyReduction(cost,dex.caughtCount+dex.hatchedCount));
+    const ability=Pokemon.passiveForSpecies(speciesId);
+    return {...e,tier,candySpeciesName:getPokemonSpecies(speciesId).name,passiveName:ability?.name??'当前引擎暂不支持',passiveAvailable:!!ability,passivePrice:passivePrices[cost-1],eggPrice:sameSpeciesEggPrice(cost,dex.hatchedCount),eggFull:this.eggs.length>=99||!getPokemonSpecies(speciesId).isObtainable(),eligible:!!dex.caughtAttr,price:tier<2?reductionPrices[cost-1][tier]:null,cap:friendshipCaps[cost-1],cost:this.getSpeciesStarterValue(speciesId),nextCost:tier<2?reducedCost(cost,tier+1):null};
+  }
+  public recordCandyFriendship(pokemon:Pokemon,amount:number):void {
+    for(const {speciesId,points}of candyFriendshipParts(pokemon,amount,this.scene.gameMode?.isClassic,this.scene.gameMode?.isDaily)){
+      if(!Object.hasOwn(speciesStarters,speciesId))continue;
+      this.starterCandyData??={};this.starterCandyData[speciesId]=addCandyFriendship(this.starterCandyData[speciesId]??emptyCandy(),points,speciesStarters[speciesId]);
+    }
+  }
+  public purchaseCostReduction(speciesId:number):Promise<void>{return this.purchaseCandyUpgrade(speciesId,'reduction');}
+  public async purchaseCandyUpgrade(speciesId:number,kind:'reduction'|'passive'|'toggle'|'egg'):Promise<void>{
+    speciesId=getPokemonSpecies(speciesId).getRootSpeciesId();
+    if(!this.canBuyCandyReduction||this.candyBusy)throw Error('CANDY_WRITER_REQUIRED');
+    this.candyBusy=true;
+    try{
+      await this.localSystemSaveQueue.catch(()=>{});
+      if(!this.pendingCandy){
+        const expected=await this.profileIO.read('data'),next=JSON.parse(expected),dex=next.dexData[speciesId];
+        if(!Object.hasOwn(speciesStarters,speciesId)||!dex?.caughtAttr||BigInt(dex.caughtAttr)===0n)throw Error('CANDY_SPECIES_LOCKED');
+        next.starterCandyData??={};const entry={...(next.starterCandyData[speciesId]??emptyCandy())},cost=speciesStarters[speciesId];
+        if(kind==='reduction')next.starterCandyData[speciesId]=buyReduction(entry,cost,dex.caughtCount+dex.hatchedCount);
+        else if(kind==='passive'||kind==='toggle'){
+          if(!Pokemon.passiveForSpecies(speciesId))throw Error('PASSIVE_UNAVAILABLE');
+          if(kind==='passive'){
+            if(entry.passive)throw Error('PASSIVE_ALREADY_UNLOCKED');
+            if(entry.candies<passivePrices[cost-1])throw Error('CANDY_INSUFFICIENT');
+            entry.candies-=passivePrices[cost-1];entry.passive=2;
+          }else {if(!entry.passive)throw Error('PASSIVE_LOCKED');entry.passive=entry.passive===2?1:2;}
+          next.starterCandyData[speciesId]=entry;
+        }else if(kind==='egg'){
+          if(!getPokemonSpecies(speciesId).isObtainable())throw Error('CANDY_SPECIES_UNAVAILABLE');
+          const price=sameSpeciesEggPrice(cost,dex.hatchedCount);
+          if(entry.candies<price)throw Error('CANDY_INSUFFICIENT');
+          if(next.eggs.length>=99)throw Error('GACHA_INVENTORY_FULL');
+          const tier=cost<=3?EggTier.COMMON:cost<=5?EggTier.GREAT:cost<=7?EggTier.ULTRA:EggTier.MASTER;
+          const start=Math.floor(Math.random()*EGG_SEED);let offset=0,eggId:number;do{eggId=tier*EGG_SEED+(start+offset++)%EGG_SEED;}while(next.eggs.some(e=>e.id===eggId));
+          next.eggs.push({id:eggId,gachaType:GachaType.MOVE,hatchWaves:getEggTierDefaultHatchWaves(tier),timestamp:Date.now(),speciesId});
+          entry.candies-=price;next.starterCandyData[speciesId]=entry;
+        }else throw Error('INVALID_CANDY_OPERATION');
+        this.pendingCandy={id:crypto.randomUUID(),speciesId,kind,expected,next};
+      }
+      const op=this.pendingCandy;if(op.speciesId!==speciesId||op.kind!==kind)throw Error('CANDY_RETRY_PENDING');
+      const write=this.profileIO.commitCandyOperation(op.id,op.expected,op.next,kind);
+      this.localSystemSaveQueue=write.then(()=>{});void this.localSystemSaveQueue.catch(()=>{});
+      this.localSystemSnapshot=await write;this.resultsGeneration++;
+      if(!await this.loadSystem({readOnly:true}))throw Error('CANDY_REFRESH_FAILED');
+      this.pendingCandy=null;
+    }finally{this.candyBusy=false;}
+  }
+
+  public hasClassicRibbon(speciesId: number): boolean {
+    return this.classicRibbonSpecies?.includes(speciesId) ?? false;
+  }
+
+  public awardClassicRibbons(speciesIds: number[]): void {
+    this.classicRibbonSpecies = awardClassicRibbons(this.classicRibbonSpecies, speciesIds,
+      pokemonPrevolutions, new Set(allSpecies.map(s => s.speciesId)));
+  }
 
   public gameStats: GameStats;
 
@@ -402,6 +475,9 @@ export class GameData {
           case 'dex-ivs':
             if(!data.dexData[fact.speciesId]||!Array.isArray(fact.ivs)||fact.ivs.length!==6||!fact.ivs.every(v=>Number.isInteger(v)&&v>=0&&v<=31))throw new Error('INVALID_COOP_IVS');
             data.updateSpeciesDexIvs(fact.speciesId,fact.ivs);break;
+          case 'candy-friendship':
+            if(!Object.hasOwn(speciesStarters,fact.speciesId))throw Error('INVALID_CANDY_SPECIES');
+            data.starterCandyData??={};data.starterCandyData[fact.speciesId]=addCandyFriendship(data.starterCandyData[fact.speciesId]??emptyCandy(),fact.points,speciesStarters[fact.speciesId]);break;
           case 'achievement-approved':
             if(fact.approved!==true||!Object.prototype.hasOwnProperty.call(achvs,fact.id)||fact.id==='CLASSIC_VICTORY')throw new Error('INVALID_COOP_ACHIEVEMENT');
             scene.unlockAchv(achvs[fact.id]);break;
@@ -421,6 +497,13 @@ export class GameData {
           case 'completion-pending':
             if(fact.achievementId!=='CLASSIC_VICTORY'||fact.sessionsWon!==1||!Array.isArray(fact.unlockCandidates)
               ||!fact.unlockCandidates.every(v=>Object.prototype.hasOwnProperty.call(data.unlocks,v)))throw new Error('INVALID_COOP_COMPLETION');
+            // Legacy receipts did not carry a team. Never guess or backfill it.
+            if(Object.hasOwn(fact,'ribbonSpecies')){
+              if(fact.mode!==GameModes.CLASSIC)throw new Error('INVALID_RIBBON_MODE');
+              validateClassicRibbons(fact.ribbonSpecies,new Set(allSpecies.map(s=>s.speciesId)));
+              if(!fact.ribbonSpecies.length||fact.ribbonSpecies.length>6)throw new Error('INVALID_RIBBON_PARTY');
+              data.awardClassicRibbons(fact.ribbonSpecies);
+            }
             if(!scene.unlockAchv(achvs.CLASSIC_VICTORY))modifierTypes.VOUCHER_PREMIUM().newModifier().apply([scene]);
             data.gameStats.sessionsWon++;
             for(const unlock of fact.unlockCandidates)data.unlocks[unlock]=true;
@@ -485,6 +568,8 @@ export class GameData {
   /** Original system serialization, also used to create a genuinely new profile. */
   public captureSystemData(): string {
     const data: SystemSaveData = {
+          classicRibbonSpecies: this.classicRibbonSpecies ?? [],
+          starterCandyData: this.starterCandyData ?? {},
           trainerId: this.trainerId,
           secretId: this.secretId,
           gender: this.gender,
@@ -580,6 +665,9 @@ export class GameData {
           if (!readOnly) this.saveSetting(Setting.Player_Gender, systemData.gender === PlayerGender.FEMALE ? 1 : 0);
 
           this.starterMoveData = systemData.starterMoveData || {};
+          this.starterCandyData = validateCandy(systemData.starterCandyData ?? {},speciesStarters);
+          this.classicRibbonSpecies = validateClassicRibbons(systemData.classicRibbonSpecies ?? [],
+            new Set(allSpecies.map(s => s.speciesId))).slice();
           
           this.starterEggMoveData = {};
           this.initEggMoveData();
@@ -1292,6 +1380,12 @@ export class GameData {
       }
 
       const hasPrevolution = pokemonPrevolutions.hasOwnProperty(species.speciesId);
+      if(incrementCount&&!hasPrevolution&&Object.hasOwn(speciesStarters,species.speciesId)
+        &&(!this.scene.gameMode?.isDaily||fromEgg||dexEntry.caughtAttr!==caughtAttr)){
+        this.starterCandyData??={};
+        const amount=(pokemon.isShiny()?5:1)*(fromEgg||pokemon.isBoss()?2:1);
+        this.starterCandyData[species.speciesId]=addCandy(this.starterCandyData[species.speciesId]??emptyCandy(),amount);
+      }
       const newCatch = !caughtAttr;
 
       const checkPrevolution = () => {
@@ -1448,7 +1542,7 @@ export class GameData {
         value = decrementValue(value);
     }
 
-    return value;
+    return Math.min(value,reducedCost(baseValue,(this.starterCandyData?.[speciesId]??this.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.reduction??0));
   }
 
   getFormIndex(attr: bigint): integer {

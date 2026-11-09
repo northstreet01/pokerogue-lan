@@ -1,3 +1,4 @@
+import * as abilityContext from '../../src/battle-core/ability-context.mjs';
 
 
 import fs from 'node:fs';
@@ -44,8 +45,9 @@ const messages = { getPokemonMessage: (pokemon, suffix) => `${pokemon.name}${suf
 messages.getLocalizedPokemonMessage=originalLocalizedPokemonMessage(messages.getPokemonMessage,p=>p.name);
 messages.getPokemonNameWithAffix=p=>p.name;
 const status = evaluate(read('data/status-effect.ts'), { '../utils': utils, '../battle-core/effect-state.mjs': effectModule,'../i18n':{default:originalI18n} });
+const abilityHookDependencies={};
 const terrain = evaluate(read('data/terrain.ts'), {
-  './type': types, '../utils': utils, './ability': {}, '../battle-core/effect-state.mjs': effectModule
+  './type': types, '../utils': utils, './ability': abilityHookDependencies, '../battle-core/effect-state.mjs': effectModule
 });
 const weather = evaluate(read('data/weather.ts'), {
   '../i18n':{default:originalI18n},
@@ -81,6 +83,7 @@ const moveCatalog = new Proxy({ 0: { id: 0, pp: -1 }, 33: { id: 33, pp: 35 }, 57
 const abilityCatalog = { 0: { id: 0,hasAttr:()=>false,getAttrs:()=>[],conditions:[] }, 1: { id: 1,hasAttr:()=>false,getAttrs:()=>[],conditions:[] } };
 const dependencies = Object.fromEntries(parse('field/pokemon.ts').statements.filter(ts.isImportDeclaration).map(n => [n.moduleSpecifier.text, {}]));
 Object.assign(dependencies, {
+  '../battle-core/ability-context.mjs':abilityContext,
   phaser: { default: { GameObjects: { Container: class { constructor() { throw Error('Renderer constructor called'); } } } } },
   '../data/enums/moves': moves, '../data/ability': { ...abilities, allAbilities: abilityCatalog },
   '../data/move': { allMoves: moveCatalog }, '../data/pokemon-stat': stats,
@@ -98,7 +101,7 @@ Object.assign(dependencies, {
   '../battle-core/move-damage.mjs':{applyPokemonMove}
 });
 const pokemon = evaluate(read('field/pokemon.ts'), dependencies);
-export function installPokemonTestDependencies(values){for(const [path,value]of Object.entries(values))Object.assign(dependencies[path],value);}
+export function installPokemonTestDependencies(values){for(const [path,value]of Object.entries(values)){Object.assign(dependencies[path],value);if(path==='../data/ability')Object.assign(abilityHookDependencies,value);}}
 export { read, parse, evaluate, pokemon, species, moveCatalog, status, battler, arena, moves, weather, terrain };
 
 export function originalPokemon(id = 100, enemy = false) {

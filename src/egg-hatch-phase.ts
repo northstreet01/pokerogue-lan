@@ -328,7 +328,8 @@ export class EggHatchPhase extends Phase {
 
     this.scene.executeWithSeedOffset(() => {
 
-      if (this.egg.isManaphyEgg()) {
+      if(this.egg.speciesId!==undefined)speciesOverride=this.egg.speciesId===Species.PHIONE&&!Utils.randSeedInt(8)?Species.MANAPHY:this.egg.speciesId;
+      else if (this.egg.isManaphyEgg()) {
         const rand = Utils.randSeedInt(8);
   
         speciesOverride = rand ? Species.PHIONE : Species.MANAPHY;
@@ -397,7 +398,8 @@ export class EggHatchPhase extends Phase {
         ret = this.scene.addPlayerPokemon(pokemonSpecies, 5, undefined, undefined, undefined, false);
       }
 
-      ret.trySetShiny(this.egg.gachaType === GachaType.SHINY ? 1024 : 512);
+      if(this.egg.speciesId!==undefined)ret.abilityIndex=ret.getSpeciesForm().abilityHidden&&!Utils.randSeedInt(8)?2:ret.getSpeciesForm().ability2?Utils.randSeedInt(2):0;
+      ret.trySetShiny(this.egg.speciesId!==undefined ? Math.floor(65536/12) : this.egg.gachaType === GachaType.SHINY ? 1024 : 512);
 
       const secondaryIvs = Utils.getIvsFromId(Utils.randSeedInt(4294967295));
 
@@ -405,7 +407,7 @@ export class EggHatchPhase extends Phase {
         ret.ivs[s] = Math.max(ret.ivs[s], secondaryIvs[s]);
       
       const baseChance = this.egg.gachaType === GachaType.MOVE ? 3 : 6;
-      this.eggMoveIndex = Utils.randSeedInt(baseChance * Math.pow(2, 3 - this.egg.tier))
+      this.eggMoveIndex = Utils.randSeedInt(this.egg.speciesId!==undefined?[16,12,6,3][this.egg.tier]:baseChance * Math.pow(2, 3 - this.egg.tier))
         ? Utils.randSeedInt(3)
         : 3;
 

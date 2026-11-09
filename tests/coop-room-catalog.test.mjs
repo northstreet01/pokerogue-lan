@@ -60,3 +60,22 @@ test('real Worker accepts borrowed species, serializes collisions, releases canc
     assert.equal((await adapter.projectSnapshot(c,1)).personal.party.length,1);
   }finally{await adapter.closeAll();}
 });
+
+test('real Worker applies the selected passive on entry and retains it across room restore',async()=>{
+ const adapter=createPlayerHostAdapter({seedFactory:()=> 'passive-catalog'});
+ try{
+  const a=data(0),b=data(1);a.starterCandyData={1:{candies:0,friendship:0,reduction:0,passive:2}};
+  const ca=api.captureRoomCatalog(a),cb=api.captureRoomCatalog(b),union=api.mergeRoomCatalogs([ca,cb]);
+  let c=await adapter.createInitialContext({runId:'passive-room'});
+  for(const [seat,ids,ready]of [[0,[],false],[1,[],false],[0,[1],false],[1,[4],false],[0,[1],true],[1,[4],true]]){
+    const action={kind:ready?'profile-ready':'profile-draft',profile:profile(seat?b:a,seat?cb:ca,union,ids),ready};
+    await adapter.validateAction(c,seat,action);c=(await adapter.advanceToDecision(c,{[seat]:action})).context;
+  }
+  assert.equal(c.checkpoint.roster.entries.find(e=>e.owner===0).pokemon.fields.passive,true);
+  assert.notEqual(c.checkpoint.roster.entries.find(e=>e.owner===1).pokemon.fields.passive,true);
+  assert.equal(api.originalDecisionStateCodec.restore(c.checkpoint).arena.terrain.terrainType,3,'Grassy Surge actually creates grassy terrain');
+  const saved=await adapter.captureCheckpoint(c);await adapter.closeAll();
+  const restored=await adapter.restoreCheckpoint(saved);assert.deepEqual(await adapter.captureCheckpoint(restored),saved);
+  assert.equal(b.starterCandyData?.[1],undefined);
+ }finally{await adapter.closeAll();}
+});

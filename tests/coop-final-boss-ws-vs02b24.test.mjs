@@ -56,6 +56,10 @@ for(const stage of ['first','second','last'])for(const failWrite of [false,true]
    const terminal=structuredClone(env.server.rooms.get(roomId).checkpoint);
    assert.equal(terminal.nativeCheckpoint.decision.victory,true);
    assert.deepEqual(terminal.intents.filter(i=>i.type==='completion-pending').map(i=>i.owner).sort(),[0,1]);
+   for(const intent of terminal.intents.filter(i=>i.type==='completion-pending')){
+    const party=terminal.nativeCheckpoint.roster.entries.filter(e=>e.owner===intent.owner);
+    assert.deepEqual(intent.payload.ribbonSpecies,[...new Set(party.map(e=>e.pokemon.fields.species))]);
+   }
    assert.deepEqual(terminal.intents.filter(i=>i.type==='voucher-pending').map(i=>i.owner).sort(),[0,1]);
    await env.close();env=await openPreparationRoom({...settings,store:new FormalRoomStore(directory),old:tokens});pair=env.pair;
    assert.deepEqual(env.server.rooms.get(roomId).checkpoint,terminal);

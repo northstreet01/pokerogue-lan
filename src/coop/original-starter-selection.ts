@@ -49,7 +49,8 @@ export function starterDexAttrProps(species: PokemonSpecies, dexAttr: bigint) {
   return formHelper().getSpeciesDexAttrProps(species, dexAttr);
 }
 export function validateStarterSelection(value) {
-  exact(value, KEYS);
+  exact(value, [...KEYS,...(Object.hasOwn(value??{},'passive')?['passive']:[])]);
+  if(value.passive!==undefined&&value.passive!==true)fail('INVALID_STARTER_PASSIVE');
   if (value.version !== STARTER_SELECTION_VERSION) fail('INVALID_STARTER_SELECTION');
   if (!isInt(value.speciesId) || !allSpecies.some(species => species.speciesId === value.speciesId))
     fail('INVALID_STARTER_SPECIES');
@@ -74,7 +75,7 @@ export function validateStarterSelection(value) {
     if (value.moveset.some(move =>
       !isInt(move) || move <= 0 || !allMoves[move] || allMoves[move].id !== move)) fail('INVALID_STARTER_MOVESET');
   }
-  return { version: STARTER_SELECTION_VERSION, speciesId: value.speciesId, dexAttr: value.dexAttr,
+  return { ...(value.passive?{passive:true}:{}),version: STARTER_SELECTION_VERSION, speciesId: value.speciesId, dexAttr: value.dexAttr,
     nature: value.nature, moveset: value.moveset === null ? null : [...value.moveset], pokerus: value.pokerus,
     ivs: [...value.ivs], eggMoves: value.eggMoves };
 }
@@ -82,7 +83,7 @@ export function validateStarterSelection(value) {
 /** Caller supplies its actual per-root-species unlock mask, including explicit 0. */
 export function captureStarterSelection(starter, ivs, eggMoves) {
   exact(starter, ['species', 'dexAttr', 'nature', 'pokerus',
-    ...(starter && Object.prototype.hasOwnProperty.call(starter, 'moveset') ? ['moveset'] : [])]);
+    ...(starter && Object.prototype.hasOwnProperty.call(starter, 'moveset') ? ['moveset'] : []),...(starter?.passive?['passive']:[])]);
   if (!allSpecies.includes(starter.species)) fail('INVALID_STARTER_SPECIES');
   if (typeof starter.dexAttr !== 'bigint') fail('INVALID_STARTER_DEX_ATTR');
   if (typeof starter.pokerus !== 'boolean') fail('INVALID_STARTER_POKERUS');
@@ -90,12 +91,12 @@ export function captureStarterSelection(starter, ivs, eggMoves) {
   const moveset = starter.moveset === undefined ? null : starter.moveset;
   if (starter.moveset === null) fail('INVALID_STARTER_MOVESET');
   return validateStarterSelection({ version: STARTER_SELECTION_VERSION, speciesId: starter.species.speciesId,
-    dexAttr: starter.dexAttr.toString(), nature: starter.nature, moveset, pokerus: starter.pokerus, ivs, eggMoves });
+    ...(starter.passive?{passive:true}:{}),dexAttr: starter.dexAttr.toString(), nature: starter.nature, moveset, pokerus: starter.pokerus, ivs, eggMoves });
 }
 export function restoreStarterSelection(value) {
   const normalized = validateStarterSelection(value);
   const species = getPokemonSpecies(normalized.speciesId), dexAttr = BigInt(normalized.dexAttr);
-  return { species, dexAttr, props: starterDexAttrProps(species, dexAttr), nature: normalized.nature,
+  return { ...(normalized.passive?{passive:true}:{}),species, dexAttr, props: starterDexAttrProps(species, dexAttr), nature: normalized.nature,
     moveset: normalized.moveset === null ? undefined : [...normalized.moveset],
     pokerus: normalized.pokerus, ivs: [...normalized.ivs], eggMoves: normalized.eggMoves };
 }

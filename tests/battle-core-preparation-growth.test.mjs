@@ -9,10 +9,13 @@ import {copy} from '../src/battle-core/coop-contract.mjs';
 import fs from 'node:fs';
 import {parse} from './helpers/original-model.mjs';
 const saved=c=>copy(codec.capture(c));
-test('candy uses the unchanged original apply method rather than a new level or experience formula',()=>{
+test('candy preserves the original apply formula with one explicit collection friendship notification',()=>{
   const ref=JSON.parse(fs.readFileSync(new URL('./fixtures/early-preparation-growth-reference.json',import.meta.url),'utf8'));
   const cls=parse('modifier/modifier.ts').statements.find(n=>n.name?.text==='PokemonLevelIncrementModifier');
-  assert.equal(cls.members.find(n=>n.name?.getText()==='apply').getText().replace(/\r\n/g,'\n'),ref.apply.replace(/\r\n/g,'\n'));
+  const actual=cls.members.find(n=>n.name?.getText()==='apply').getText().replace(/\r\n/g,'\n');
+  const notification='\n    pokemon.scene.gameData.recordCandyFriendship?.(pokemon,friendshipIncrease.value);';
+  assert.equal(actual.split(notification).length,2);
+  assert.equal(actual.replace(notification,''),ref.apply.replace(/\r\n/g,'\n'));
 });
 const cases=[{}, {seat:1,full:true}, {full:true,slot:null}, {level:15},
   {level:15,evolve:'cancel',pause:'pause'}, {level:15,evolve:'cancel',pause:'continue'},

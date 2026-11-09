@@ -1,3 +1,4 @@
+import {bindAbility} from '../../src/battle-core/ability-context.mjs';
 import ts from 'typescript';
 import {initialDecision,codec} from './decision-model.mjs';
 import {parse,evaluate,pokemon,arena,originalPokemon,installPokemonTestDependencies} from './original-model.mjs';
@@ -11,7 +12,7 @@ import {prependPhase,pushPhase} from '../../src/battle-core/phase-queue.mjs';
 const abilitySource=parse('data/ability.ts').statements.filter(n=>
   ts.isClassDeclaration(n)&&['AbAttr','PreSwitchOutAbAttr','PostSummonAbAttr'].includes(n.name.text)
   ||ts.isFunctionDeclaration(n)&&['applyAbAttrsInternal','applyPreSwitchOutAbAttrs','applyPostSummonAbAttrs','canApplyAttr','queueShowAbility'].includes(n.name?.text)).map(n=>n.getText()).join('\n');
-const abilities=evaluate(`import {observeRulePromise} from 'tasks'; ${abilitySource}`,{tasks:{observeRulePromise}});
+const abilities=evaluate(`import {observeRulePromise,bindAbility} from 'tasks'; ${abilitySource}`,{tasks:{observeRulePromise,bindAbility}});
 installPhaseTestDependencies({'./data/ability':abilities,'./data/pokemon-forms':formModule,'./modifier/modifier':modifiers,
   './data/arena-tag':arena,'./field/pokemon':pokemon,'./data/pokeball':{getPokeballTintColor:()=>0},
   './ui/command-ui-handler':{Command:evaluate(parse('ui/command-ui-handler.ts').statements.find(n=>n.name?.text==='Command').getText()).Command}});

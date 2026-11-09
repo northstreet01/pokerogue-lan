@@ -457,6 +457,7 @@ export class SelectStarterPhase extends Phase {
             : Gender.GENDERLESS;
           const starterIvs = this.scene.gameData.dexData[starter.species.speciesId].ivs.slice(0);
           const starterPokemon = this.scene.addPlayerPokemon(starter.species, this.scene.gameMode.getStartingLevel(), starterProps.abilityIndex, starterFormIndex, starterGender, starterProps.shiny, starterIvs, starter.nature);
+          if(this.scene.gameData.starterCandyData?.[starter.species.getRootSpeciesId()]?.passive===2)starterPokemon.passive=true;
           starterPokemon.tryPopulateMoveset(starter.moveset);
           if (starter.pokerus)
             starterPokemon.pokerus = true;
@@ -2842,6 +2843,7 @@ export class GameOverPhase extends BattlePhase {
           if (this.scene.gameMode.isClassic) {
             firstClear = this.scene.validateAchv(achvs.CLASSIC_VICTORY);
             this.scene.gameData.gameStats.sessionsWon++;
+            this.scene.gameData.awardClassicRibbons(this.scene.getParty().map(p => p.species.speciesId));
           } else if (this.scene.gameMode.isDaily && success[1])
             this.scene.gameData.gameStats.dailyRunSessionsWon++;
         }

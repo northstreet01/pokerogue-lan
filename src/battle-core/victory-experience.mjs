@@ -23,6 +23,7 @@ export function queueVictoryExperience(phase,rules,baseExp){
           const friendshipIncrease = new Utils.IntegerHolder(2);
           this.scene.applyModifier(PokemonFriendshipBoosterModifier, true, partyMember, friendshipIncrease);
           partyMember.friendship = Math.min(partyMember.friendship + friendshipIncrease.value, 255);
+          this.scene.gameData.recordCandyFriendship?.(partyMember,friendshipIncrease.value);
           if (partyMember.friendship === 255)
             this.scene.validateAchv(achvs.MAX_FRIENDSHIP);
         }

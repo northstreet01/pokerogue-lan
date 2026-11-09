@@ -36,7 +36,7 @@ import {createOwnedEggStateCodec} from './battle-core/egg-state.mjs';
 // change the single-player/experimental entry point. Catalog closures remain
 // trusted original objects; constructors/condition predicates never run on load.
 const allPhases = { ...phases, ...evolutionPhases, ...formPhases,EggHatchPhase };
-export const originalOwnedEggStateCodec=createOwnedEggStateCodec({Egg,seed:EGG_SEED,
+export const originalOwnedEggStateCodec=createOwnedEggStateCodec({Egg,seed:EGG_SEED,validSpecies:id=>!!getPokemonSpecies(id)&&getPokemonSpecies(id).getRootSpeciesId()===id,
   gachaTypes:[GachaType.MOVE,GachaType.LEGENDARY,GachaType.SHINY],tiers:[EggTier.COMMON,EggTier.GREAT,EggTier.ULTRA,EggTier.MASTER]});
 export const evolutionReferenceCodec = createCatalogReferenceCodec(pokemonEvolutions);
 export const formChangeReferenceCodec = createCatalogReferenceCodec(pokemonFormChanges);

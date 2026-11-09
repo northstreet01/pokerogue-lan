@@ -1,4 +1,12 @@
 import i18next from '../i18n';
+import {passiveName} from './passive-catalog.mjs';
+import {bindAbility} from '../battle-core/ability-context.mjs';
+
+export function getSpeciesPassive(speciesId:number,formIndex=0):Ability|null {
+  const name=passiveName(speciesId,formIndex),ability=allAbilities[Abilities[name]];
+  // Early engine catalogue gaps must not become purchasable promises.
+  return ability&&ability.id!==Abilities.NONE&&ability.attrs.length&&!/\([NP]\)/.test((ability as any).originalName)?ability:null;
+}
 import Pokemon, { HitResult, PokemonMove } from "../field/pokemon";
 import {observeRulePromise} from '../battle-core/rule-task-tracker.mjs';
 import { catalogName, catalogDescription } from '../system/localized-catalog';
@@ -1490,12 +1498,9 @@ export class ProtectAbilityAbAttr extends AbAttr {
 
 function applyAbAttrsInternal<TAttr extends AbAttr>(attrType: { new(...args: any[]): TAttr },
   pokemon: Pokemon, applyFunc: AbAttrApplyFunc<TAttr>, args: any[], isAsync: boolean = false, showAbilityInstant: boolean = false, quiet: boolean = false): Promise<void> {
-  const promise = new Promise<void>(resolve => {
-    if (!pokemon.canApplyAbility())
-      return resolve();
-
-    const ability = pokemon.getAbility();
-    const attrs = ability.getAttrs(attrType) as TAttr[];
+  const promise = new Promise<void>((resolve,reject) => {
+    const candidates=pokemon.getBattleAbilities?.(attrType)??(pokemon.canApplyAbility()?[pokemon.getAbility()]:[]);
+    const attrs = candidates.flatMap(ability=>ability.getAttrs(attrType).map(attr=>({ability,attr:attr as TAttr})));
 
     const clearSpliceQueueAndResolve = () => {
       pokemon.scene.clearPhaseQueueSplice();
@@ -1507,13 +1512,15 @@ function applyAbAttrsInternal<TAttr extends AbAttr>(attrType: { new(...args: any
       else
         clearSpliceQueueAndResolve();
     };
-    const applyAbAttr = (attr: TAttr) => {
-      if (!canApplyAttr(pokemon, attr))
-        return applyNextAbAttr();
+    const applyAbAttr = ({ability,attr}: {ability:Ability,attr:TAttr}) => {
+      const normal=pokemon.getAbility(false,true),release=bindAbility(pokemon,ability);
+      let allowed;try{allowed=canApplyAttr(pokemon,attr);}catch(error){release();reject(error);return;}
+      if (!allowed){release();return applyNextAbAttr();}
       pokemon.scene.setPhaseQueueSplice();
       const onApplySuccess = () => {
         if (attr.showAbility && !quiet) {
-          if (showAbilityInstant)
+          if(ability.id!==normal.id)pokemon.scene.queueMessage(`${pokemon.name}：${ability.name}（被动）`);
+          else if (showAbilityInstant)
             pokemon.scene.abilityBar.showAbility(pokemon);
           else
             queueShowAbility(pokemon);
@@ -1528,16 +1535,14 @@ function applyAbAttrsInternal<TAttr extends AbAttr>(attrType: { new(...args: any
           }
         }
       };
-      const result = applyFunc(attr);
+      let result;try{result=applyFunc(attr);}catch(error){release();reject(error);return;}
       if (result instanceof Promise) {
         observeRulePromise(pokemon.scene, result).then(success => {
-          if (success)
-            onApplySuccess();
+          try{if(success)onApplySuccess();}catch(error){reject(error);return;}finally{release();}
           applyNextAbAttr();
-        });
+        },error=>{release();reject(error);});
       } else {
-        if (result)
-          onApplySuccess();
+        try{if (result)onApplySuccess();}finally{release();}
         applyNextAbAttr();
       }
     };

@@ -30,6 +30,7 @@ await cp('LICENSE',join(root,'LICENSE'));
 await cp('README.md',join(root,'使用说明.md'));
 await cp('CHANGELOG.md',join(root,'CHANGELOG.md'));
 await cp('RELEASE_NOTES.md',join(root,'更新详情.md'));
+await cp('CANDY_MECHANICS.md',join(root,'糖果机制说明.md'));
 await mkdir(join(root,'.github/images'),{recursive:true});
 await cp('.github/images/coop-room.png',join(root,'.github/images/coop-room.png'));
 console.log('Desktop application prepared:',root);

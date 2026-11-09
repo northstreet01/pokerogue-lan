@@ -1,4 +1,5 @@
 import { readStoredCommandIntent } from '../battle-core/stored-command.mjs';
+import {candyFriendshipParts} from '../system/starter-candy.mjs';
 import BattleScene from '../battle-scene';
 import { Phase } from '../phase';
 import { prepareQueuedFight, selectEncoreFight } from '../battle-core/forced-command.mjs';
@@ -184,6 +185,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
   Object.assign(root, c.scene, { arena: c.arena, currentBattle: c.battle, enemyModifiers: c.enemyModifiers,
     nativeEvents: [], nativeIndependentCommands: true, enableTutorials: false });
   const events = root.nativeEvents, intents = [], callbacks = [];
+  const candyFacts:any[]=[];
   let tick = 0, order = 0, ended = 0, waiting = null, nextId = 0;
   const suppliedTargets = new Set<number>();
   let completePhase: (() => void) | undefined;
@@ -201,6 +203,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
     getIndex(p) { return this.list.indexOf(p); }, getAll() { return [...this.list]; },
     remove(p) { const i = this.getIndex(p); if (i >= 0) this.list.splice(i, 1); }, moveBelow() {} };
   const deferredData = (owner: number | null = null) => ({ ...identity, unlocks: {}, voucherCounts:{0:0,1:0,2:0,3:0}, gameStats: new GameStats(), getFormAttr: GameData.prototype.getFormAttr,
+    recordCandyFriendship:(pokemon,amount)=>{for(const part of candyFriendshipParts(pokemon,amount,c.battle.gameMode.isClassic,c.battle.gameMode.isDaily))candyFacts.push({...part,owner});},
     setPokemonSeen: (p, incrementCount = true) => intents.push({ kind: 'seen', pokemonId: p.id,
       factVersion:1, owner, pokemon:capturePokemonState(p),
       speciesId: p.species.speciesId, dexAttr: p.getDexAttr().toString(), incrementCount }),
@@ -609,6 +612,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
   const statsSnapshot=()=>[root,...views].map(scene=>({...scene.gameData.gameStats}));
   const initialStats=statsSnapshot();
   const recordStatistics=(id,before=initialStats,actorOwner:number|null=null)=>{
+    for(const [index,fact]of candyFacts.splice(0).entries())intents.push({...fact,kind:'candy-friendship',factVersion:1,id:`${id}:${index}`});
     for(const owner of [0,1]){
       const values:any={};
       for(const key of ['battles','trainersDefeated','pokemonDefeated','pokemonFused','highestLevel','highestMoney','highestDamage','highestHeal','highestEndlessWave']){
@@ -744,6 +748,7 @@ function bindNativeScene(c: any, identity: any, inputs: any = {}) {
           declaration.unshiftPhase=phase=>{check(phase instanceof UnlockPhase,'INVALID_CLEAR_UNLOCK');unlocks.push((phase as any).unlockable);};
           GameOverPhase.prototype.handleUnlocks.call({scene:declaration,victory:true} as any);
           intents.push({kind:'completion-pending',factVersion:1,owner,waveIndex:c.battle.waveIndex,mode:c.battle.gameMode.modeId,
+            ribbonSpecies:[...new Set(views[owner].getParty().map(pokemon=>pokemon.species.speciesId))],
             achievementId:achvs.CLASSIC_VICTORY.id,unlockCandidates:unlocks,sessionsWon:1,resolve:'original-personal-clear'});
           const voucher=vouchers[achvs.CLASSIC_VICTORY.id];check(voucher,'ORIGINAL_CLEAR_VOUCHER_UNAVAILABLE');
           intents.push({kind:'voucher-pending',factVersion:1,owner,id:voucher.id,voucherType:voucher.voucherType,count:1,

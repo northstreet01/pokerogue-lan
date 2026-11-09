@@ -109,6 +109,7 @@ export function constructSelectedStarterInstance(runtime: ReturnType<typeof crea
       if (!pokemon.tryPopulateMoveset(selection.moveset as any)) throw new Error('INVALID_STARTER_MOVESET');
     }
     if (selection.pokerus) pokemon.pokerus = true;
+    if(selection.passive)pokemon.passive=true;
     return pokemon;
   } finally {
     if (eggDescriptor) Object.defineProperty(gameData, 'starterEggMoveData', eggDescriptor);

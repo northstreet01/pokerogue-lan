@@ -19,6 +19,7 @@ export class Egg {
   public gachaType: GachaType;
   public hatchWaves: integer;
   public timestamp: integer;
+  public speciesId?: number;
 
   constructor(id: integer, gachaType: GachaType, hatchWaves: integer, timestamp: integer) {
     this.id = id;
@@ -29,6 +30,7 @@ export class Egg {
   }
 
   isManaphyEgg(): boolean {
+    if(this.speciesId!==undefined)return false;
     return this.tier === EggTier.COMMON && !(this.id % 255);
   }
 
@@ -77,6 +79,7 @@ export function getEggHatchWavesMessage(hatchWaves: integer): string {
 }
 
 export function getEggGachaTypeDescriptor(scene: BattleScene, egg: Egg): string {
+  if(egg.speciesId!==undefined)return `${getPokemonSpecies(egg.speciesId).name} · 糖果购买的同种蛋`;
   if (egg.isManaphyEgg())
     return '';
   switch (egg.gachaType) {

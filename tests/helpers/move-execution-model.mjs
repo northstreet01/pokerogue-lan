@@ -1,3 +1,5 @@
+import * as abilityContext from '../../src/battle-core/ability-context.mjs';
+import * as passiveCatalog from '../../src/data/passive-catalog.mjs';
 import ts from 'typescript';
 import fs from 'node:fs';
 import {parse,evaluate,read,pokemon,installPokemonTestDependencies,moveCatalog,status,battler,moves,weather,terrain} from './original-model.mjs';
@@ -15,6 +17,7 @@ class Holder{constructor(value){this.value=value;}}
 export const utils={IntegerHolder:Holder,NumberHolder:Holder,BooleanHolder:Holder};
 const moveReference={};
 export const common={
+  '../battle-core/ability-context.mjs':abilityContext,'./passive-catalog.mjs':passiveCatalog,
   '../i18n':{default:originalI18n},
   '../battle-core/rule-task-tracker.mjs':{observeRulePromise},
   '../field/pokemon':pokemon,'../phases':originalPhases,'./enums/moves':moves,'./status-effect':status,'./battler-tags':battler,

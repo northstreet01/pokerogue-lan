@@ -3,7 +3,8 @@
 // Match the original engine's initialization order before touching GameData.
 import '../battle-scene';
 import { GameData } from '../system/game-data';
-import { allSpecies, getPokemonSpecies, initSpecies } from '../data/pokemon-species';
+import { allSpecies, getPokemonSpecies, initSpecies, speciesStarters } from '../data/pokemon-species';
+import {validateCandy} from '../system/starter-candy.mjs';
 import { allMoves, initMoves } from '../data/move';
 import { initAbilities } from '../data/ability';
 import { speciesEggMoves } from '../data/egg-moves';
@@ -20,14 +21,16 @@ import { AES, enc } from 'crypto-js';
 import {restorePokemonState} from '../field/pokemon';
 import {ORIGINAL_SAVE_VERSION} from '../system/save-version';
 import {validatePayDay} from '../battle-core/pay-day.mjs';
+import {validateClassicRibbons} from '../system/classic-ribbons.mjs';
+import {Species} from '../data/enums/species';
 
 const SYSTEM_KEYS = ['trainerId','secretId','gender','dexData','starterMoveData','starterEggMoveData','gameStats','unlocks',
-  'achvUnlocks','voucherUnlocks','voucherCounts','eggs','gameVersion','timestamp'];
+  'achvUnlocks','voucherUnlocks','voucherCounts','eggs','gameVersion','timestamp','classicRibbonSpecies','starterCandyData'];
 const SESSION_KEYS = ['seed','playTime','gameMode','party','enemyParty','modifiers','enemyModifiers','arena','pokeballCounts','money',
   'score','waveIndex','battleType','trainer','gameVersion','timestamp'];
 const POKEMON_KEYS = ['id','player','species','formIndex','abilityIndex','shiny','pokeball','level','exp','levelExp','gender','hp','stats','ivs','nature',
   'moveset','status','friendship','metLevel','metBiome','pauseEvolutions','pokerus','fusionSpecies','fusionFormIndex','fusionAbilityIndex',
-  'fusionShiny','fusionGender','boss','summonData'];
+  'fusionShiny','fusionGender','boss','summonData','passive'];
 const speciesIds = () => new Set(allSpecies.map(s => s.speciesId));
 const initializeCatalogs = () => { initSpecies(); initMoves(); initAbilities(); };
 const record = value => check(value && typeof value === 'object' && !Array.isArray(value));
@@ -45,6 +48,8 @@ export const originalSaveCodec = Object.freeze({
   hatchResult(result:any){
     originalOwnedEggStateCodec.restore({players:[[result.egg],[]]});
     const pokemon=restorePokemonState(result.pokemon);
+    if(result.egg.speciesId!==undefined)check(pokemon.species.speciesId===result.egg.speciesId
+      ||result.egg.speciesId===Species.PHIONE&&pokemon.species.speciesId===Species.MANAPHY,'HATCH_SPECIES_MISMATCH');
     check(pokemon instanceof Object&&pokemon.isPlayer()&&pokemon.level===5&&!pokemon.fusionSpecies,'INVALID_HATCH_POKEMON');
     int(result.eggMoveIndex,0,3);
   },
@@ -54,6 +59,8 @@ export const originalSaveCodec = Object.freeze({
     version(s); int(s.trainerId,0,65535); int(s.secretId,0,65535);
     if (s.gender !== undefined) int(s.gender,0,2);
     const ids = speciesIds(); numericKeys(s.dexData, id => ids.has(id));
+    if(Object.hasOwn(s,'starterCandyData'))validateCandy(s.starterCandyData,speciesStarters);
+    if(Object.hasOwn(s,'classicRibbonSpecies'))validateClassicRibbons(s.classicRibbonSpecies,ids);
     check(Object.keys(s.dexData).length > 0, 'MISSING_DEX_DATA');
     for (const [key,value] of Object.entries(s.dexData)) {
       const d: any = value; exact(d, ['seenAttr','caughtAttr','natureAttr','seenCount','caughtCount','hatchedCount','ivs']);
@@ -105,7 +112,7 @@ export const originalSaveCodec = Object.freeze({
       for (const m of p.moveset) { exact(m,['moveId','ppUsed','ppUp'],['virtual']); move(m.moveId); int(m.ppUsed,allMoves[m.moveId].pp === -1 ? -1 : 0); int(m.ppUp,0,3); if (m.virtual !== undefined) check(typeof m.virtual === 'boolean'); }
       if (p.status) { exact(p.status,['effect','turnCount'],['cureTurn']); int(p.status.effect,0,7); int(p.status.turnCount); if (p.status.cureTurn !== undefined) int(p.status.cureTurn); }
       if (p.fusionSpecies !== undefined && p.fusionSpecies !== null) check(ids.has(p.fusionSpecies), 'UNKNOWN_ORIGINAL_SPECIES');
-      for (const k of ['pauseEvolutions','pokerus','fusionShiny','boss']) if (p[k] !== undefined) check(typeof p[k] === 'boolean');
+      for (const k of ['pauseEvolutions','pokerus','fusionShiny','boss','passive']) if (p[k] !== undefined) check(typeof p[k] === 'boolean');
       if (p.metBiome !== undefined) check(p.metBiome === -1 || typeof Biome[p.metBiome] === 'string','UNKNOWN_ORIGINAL_BIOME');
       if (p.fusionFormIndex !== undefined) int(p.fusionFormIndex,0,Math.max(getPokemonSpecies(p.fusionSpecies).forms.length-1,0));
       if (p.fusionAbilityIndex !== undefined) int(p.fusionAbilityIndex,0,2);

@@ -72,7 +72,7 @@ export function executeMoveAction(phase, rules) {
             for (let opponent of phase.pokemon.getOpponents()) {
                 if (phase.move.ppUsed === phase.move.getMove().pp)
                     break;
-                if (opponent.getAbility().id === Abilities.PRESSURE)
+                if (opponent.hasAbility(Abilities.PRESSURE))
                     phase.move.ppUsed = Math.min(phase.move.ppUsed + 1, phase.move.getMovePp());
             }
         }

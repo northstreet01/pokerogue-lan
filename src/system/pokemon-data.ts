@@ -30,6 +30,7 @@ export default class PokemonData {
   public moveset: PokemonMove[];
   public status: Status;
   public friendship: integer;
+  declare public passive?: boolean;
   public metLevel: integer;
   public metBiome: Biome | -1;
   public pauseEvolutions: boolean;
@@ -52,6 +53,7 @@ export default class PokemonData {
     this.species = sourcePokemon ? sourcePokemon.species.speciesId : source.species;
     this.formIndex = Math.max(Math.min(source.formIndex, getPokemonSpecies(this.species).forms.length - 1), 0);
     this.abilityIndex = source.abilityIndex;
+    if(source.passive)this.passive=true;
     this.shiny = source.shiny;
     this.pokeball = source.pokeball;
     this.level = source.level;

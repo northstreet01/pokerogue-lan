@@ -43,7 +43,8 @@ function validateProfileSelection(value, allowEmpty: boolean) {
   if (new Set(starters.map(starter => starter.speciesId)).size !== starters.length) fail('DUPLICATE_STARTER_SPECIES');
   array(value.unlocks, starters.length, starters.length, 'INVALID_PROFILE_UNLOCKS');
   const unlocks = value.unlocks.map((record, index) => {
-    exact(record, ['caughtAttr', 'eggMoves', 'ivs', 'natureAttr', 'speciesId'], 'INVALID_PROFILE_UNLOCKS');
+    exact(record, ['caughtAttr', 'eggMoves', 'ivs', 'natureAttr', 'speciesId',...(Object.hasOwn(record,'passive')?['passive']:[])], 'INVALID_PROFILE_UNLOCKS');
+    if((record.passive??false)!==(starters[index].passive??false))fail('STARTER_PASSIVE_NOT_UNLOCKED');
     const starter = starters[index], selection = restoreStarterSelection(starter);
     const helper = Object.create(GameData.prototype);
     let mask = 127n;
@@ -62,7 +63,7 @@ function validateProfileSelection(value, allowEmpty: boolean) {
     const form = selection.species.forms.length ? selection.species.forms[selection.props.formIndex] : selection.species;
     if (selection.moveset !== undefined && !form.validateStarterMoveset(selection.moveset as any, record.eggMoves))
       fail('INVALID_STARTER_MOVESET');
-    return { speciesId: record.speciesId, caughtAttr: record.caughtAttr, natureAttr: record.natureAttr,
+    return { ...(record.passive?{passive:true}:{}),speciesId: record.speciesId, caughtAttr: record.caughtAttr, natureAttr: record.natureAttr,
       ivs: [...record.ivs], eggMoves: record.eggMoves };
   });
   const species = new Set();
@@ -72,11 +73,12 @@ function validateProfileSelection(value, allowEmpty: boolean) {
     if (!allSpecies.some(entry => entry.speciesId === starter.speciesId)) fail('INVALID_STARTER_SPECIES');
   }
   const costs = value.costs.map((cost, index) => {
-    exact(cost, ['caughtCount', 'hatchedCount', 'speciesId'], 'INVALID_PROFILE_COSTS');
+    exact(cost, ['caughtCount', 'hatchedCount', 'speciesId',...(Object.hasOwn(cost,'valueReduction')?['valueReduction']:[])], 'INVALID_PROFILE_COSTS');
+    if(cost.valueReduction!==undefined&&(!Number.isInteger(cost.valueReduction)||cost.valueReduction<0||cost.valueReduction>2))fail('INVALID_PROFILE_COSTS');
     if (cost.speciesId !== starters[index].speciesId || !isInt(cost.caughtCount) || cost.caughtCount < 0
       || !isInt(cost.hatchedCount) || cost.hatchedCount < 0) fail('INVALID_PROFILE_COSTS');
     if (!Object.prototype.hasOwnProperty.call(speciesStarters, cost.speciesId)) fail('UNKNOWN_STARTER_COST');
-    return { speciesId: cost.speciesId, caughtCount: cost.caughtCount, hatchedCount: cost.hatchedCount };
+    return { speciesId: cost.speciesId, caughtCount: cost.caughtCount, hatchedCount: cost.hatchedCount,...(cost.valueReduction?{valueReduction:cost.valueReduction}:{}) };
   });
   array(value.eggs, 0, 10000, 'INVALID_PROFILE_EGGS');
   const seenEggs = new Set();
@@ -124,10 +126,10 @@ function captureProfileSelection(gameData, starters, allowEmpty: boolean) {
     if (!isInt(entry.caughtCount) || entry.caughtCount < 0
       || !isInt(entry.hatchedCount) || entry.hatchedCount < 0) fail('MISSING_DEX_RECORD');
     return {
-      starter: captureStarterSelection(starter, entry.ivs, eggMoves),
-      unlock: { speciesId, caughtAttr: entry.caughtAttr.toString(), natureAttr: entry.natureAttr,
+      starter: captureStarterSelection({...starter,...((gameData.starterCandyData?.[speciesId]??gameData.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.passive===2?{passive:true}:{})}, entry.ivs, eggMoves),
+      unlock: { ...((gameData.starterCandyData?.[speciesId]??gameData.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.passive===2?{passive:true}:{}),speciesId, caughtAttr: entry.caughtAttr.toString(), natureAttr: entry.natureAttr,
         ivs: [...entry.ivs], eggMoves },
-      cost: { speciesId, caughtCount: entry.caughtCount, hatchedCount: entry.hatchedCount },
+      cost: { speciesId, caughtCount: entry.caughtCount, hatchedCount: entry.hatchedCount,...((gameData.starterCandyData?.[speciesId]??gameData.starterCandyData?.[getPokemonSpecies(speciesId).getRootSpeciesId()])?.reduction?{valueReduction:(gameData.starterCandyData[speciesId]??gameData.starterCandyData[getPokemonSpecies(speciesId).getRootSpeciesId()]).reduction}:{}) },
     };
   });
   if (!Array.isArray(gameData.eggs)) fail('INVALID_PROFILE_EGGS');
@@ -164,6 +166,7 @@ function priceSelection(value, allowEmpty: boolean) {
   const view = Object.create(GameData.prototype);
   view.dexData = Object.fromEntries(normalized.costs.map(cost => [cost.speciesId,
     { caughtCount: cost.caughtCount, hatchedCount: cost.hatchedCount }]));
+  view.starterCandyData=Object.fromEntries(normalized.costs.map(cost=>[cost.speciesId,{reduction:cost.valueReduction??0}]));
   let total = 0;
   const starters = normalized.starters.map((starter, index) => {
     const cost = GameData.prototype.getSpeciesStarterValue.call(view, starter.speciesId);

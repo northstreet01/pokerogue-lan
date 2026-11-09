@@ -553,13 +553,14 @@ export default class SummaryUiHandler extends UiHandler {
         if (this.pokemon.isTerastallized())
           profileContainer.add(getTypeIcon(types.length, this.pokemon.getTeraType(), true));
 
-        const ability = this.pokemon.getAbility(true);
+        const ability = this.pokemon.getAbility(true),passive=this.pokemon.getPassiveAbility?.();
 
-        const abilityNameText = addTextObject(this.scene, 7, 66, ability.name, TextStyle.SUMMARY);
+        const abilityNameText = addTextObject(this.scene, 7, 66, ability.name+(passive?` / ${passive.name}（被动）`:''), TextStyle.SUMMARY);
         abilityNameText.setOrigin(0, 1);
+        if(abilityNameText.displayWidth>206)abilityNameText.setScale(abilityNameText.scaleX*206/abilityNameText.displayWidth);
         profileContainer.add(abilityNameText);
 
-        const abilityDescriptionText = addTextObject(this.scene, 7, 69, ability.description, TextStyle.WINDOW, { wordWrap: { width: 1224 } });
+        const abilityDescriptionText = addTextObject(this.scene, 7, 69, ability.description+(passive?`\n被动：${passive.description}`:''), TextStyle.WINDOW, { wordWrap: { width: 1224 } });
         abilityDescriptionText.setOrigin(0, 0);
         profileContainer.add(abilityDescriptionText);
 

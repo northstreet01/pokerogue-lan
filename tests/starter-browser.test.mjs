@@ -47,3 +47,37 @@ test('collection details use text content and do not locate or select a team mem
   assert.equal(detail.querySelector('img'),null);assert.equal(located,0);
   release();dom.window.close();
 });
+
+test('ribbon browsing uses personal marks even with shared unlocks and remembers filters without granting anything',()=>{
+  const dom=new JSDOM('<body></body>',{url:'http://localhost'});globalThis.document=dom.window.document;
+  const storage=dom.window.localStorage,shared={...own,dexData:{...own.dexData,4:{caughtAttr:1n}}};
+  const hasRibbon=id=>id===1;
+  assert.deepEqual(findStarters(entries,shared,{...base,ribbon:'earned'},undefined,hasRibbon).map(r=>r.species.speciesId),[1]);
+  assert.deepEqual(findStarters(entries,shared,{...base,ribbon:'missing'},undefined,hasRibbon).map(r=>r.species.speciesId),[4,7]);
+  const mount=()=>mountStarterBrowser({entries,data:shared,types:[],storage,onLocate:()=>{},hasRibbon});
+  let release=mount();
+  const select=[...document.querySelectorAll('label')].find(e=>e.textContent.startsWith('本人经典缎带')).querySelector('select');
+  select.value='earned';select.dispatchEvent(new dom.window.Event('change'));
+  assert.equal(document.querySelectorAll('.starter-browser-results button').length,1);
+  assert.match(document.querySelector('.starter-browser-results button').textContent,/妙蛙种子.*经典通关缎带/);
+  release();release=mount();
+  assert.equal(document.querySelectorAll('.starter-browser-results button').length,1);
+  [...document.querySelectorAll('button')].find(b=>b.textContent==='重置筛选').click();
+  assert.equal(document.querySelectorAll('.starter-browser-results button').length,3);
+  assert.equal(own.dexData[4].caughtAttr,0n);release();dom.window.close();
+});
+
+test('candy purchase requires confirmation, blocks double clicks and refreshes only after successful save',async()=>{
+ const dom=new JSDOM('<body></body>');globalThis.document=dom.window.document;
+ let balance=25,cost=3,calls=0,finish;
+ const release=mountStarterBrowser({entries,data:own,types:[],onLocate(){},describe:s=>s.name,
+  candyInfo:()=>({candies:balance,friendship:0,cap:75,cost,nextCost:2,price:20,eligible:true}),
+  onReduceCost:()=>{calls++;return new Promise(resolve=>{finish=()=>{balance-=20;cost=2;resolve();};});}});
+ [...document.querySelectorAll('button')].find(b=>b.textContent==='查看 妙蛙种子 详情').click();
+ const button=[...document.querySelectorAll('button')].find(b=>b.textContent.startsWith('降低费用'));
+ button.click();assert.equal(calls,0);assert.match(button.textContent,/确认/);
+ button.click();button.click();assert.equal(calls,1);assert.equal(balance,25);
+ finish();await new Promise(setImmediate);assert.equal(balance,5);
+ assert.match(document.getElementById('starter-browser').textContent,/本人糖果：5/);
+ release();dom.window.close();
+});
