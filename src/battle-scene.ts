@@ -311,6 +311,8 @@ export default class BattleScene extends Phaser.Scene {
 		this.loadImage('achv_bar_3', 'ui');
 		this.loadImage('achv_bar_4', 'ui');
 		this.loadImage('shiny_star', 'ui', 'shiny.png');
+		for (const asset of ['scroll_bar', 'scroll_bar_handle', 'candy', 'candy_overlay', 'champion_ribbon']) this.loadImage(asset, 'ui');
+		for (const asset of ['passive_bg', 'shiny_star_small', 'ha_capsule', 'favorite', 'common_egg', 'normal_memory']) this.loadImage(asset, 'ui');
 		this.loadImage('icon_spliced', 'ui');
 		this.loadImage('icon_tera', 'ui');
 		this.loadImage('type_tera', 'ui');
@@ -421,6 +423,7 @@ export default class BattleScene extends Phaser.Scene {
 		this.loadAtlas('pb', '');
 		this.loadAtlas('items', '');
 		this.loadAtlas('types', '');
+		this.loadAtlas('types_zh-Hans', '');
 		this.loadAtlas('statuses', '');
 		this.loadAtlas('categories', '');
 		
@@ -1335,6 +1338,12 @@ export default class BattleScene extends Phaser.Scene {
 		else if (this.isButtonPressed(Button.CANCEL)) {
 			inputSuccess = this.ui.processInput(Button.CANCEL);
 		} else if (this.isButtonPressed(Button.MENU)) {
+			if (this.ui?.getHandler?.()?.captureMenuInput) {
+				this.ui.processInput(Button.MENU); return true;
+			}
+			// The imported catalogue owns M while the starter screen is active.
+			if (this.ui?.getMode() === Mode.STARTER_SELECT && this.ui.processInput(Button.MENU))
+				return true;
 			if (this.getCurrentPhase() instanceof HomePhase) {
 				void (this.getCurrentPhase() as HomePhase).showHome();
 				return;

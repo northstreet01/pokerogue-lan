@@ -12,6 +12,7 @@ export class StatsContainer extends Phaser.GameObjects.Container {
   private statsIvsCache: integer[];
   private ivChart: Phaser.GameObjects.Polygon;
   private ivStatValueTexts: BBCodeText[];
+  private ivTween?: Phaser.Tweens.Tween;
 
   constructor(scene: BattleScene, x: number, y: number, showDiff?: boolean) {
     super(scene, x, y);
@@ -61,6 +62,7 @@ export class StatsContainer extends Phaser.GameObjects.Container {
   }
 
   updateIvs(ivs: integer[], originalIvs?: integer[]): void {
+    this.ivTween?.remove(); this.ivTween = undefined;
     if (ivs) {
       const ivChartData = new Array(6).fill(null).map((_, i) => [ (ivs[i] / 31) * ivChartSize * ivChartStatCoordMultipliers[i][0], (ivs[i] / 31) * ivChartSize * ivChartStatCoordMultipliers[i][1] ] ).flat();
       const lastIvChartData = this.statsIvsCache || defaultIvChartData;
@@ -77,7 +79,7 @@ export class StatsContainer extends Phaser.GameObjects.Container {
         t.setText(`[shadow]${label}[/shadow]`);
       });
 
-      this.scene.tweens.addCounter({
+      this.ivTween = this.scene.tweens.addCounter({
         from: 0,
         to: 1,
         duration: 1000,
@@ -92,5 +94,10 @@ export class StatsContainer extends Phaser.GameObjects.Container {
       this.statsIvsCache = defaultIvChartData;
       this.ivChart.setTo(defaultIvChartData);
     }
+  }
+
+  destroy(fromScene?: boolean) {
+    this.ivTween?.remove(); this.ivTween = undefined;
+    super.destroy(fromScene);
   }
 }

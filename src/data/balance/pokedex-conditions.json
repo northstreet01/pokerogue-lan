@@ -1,0 +1,2498 @@
+{
+  "source": "src/data/pokemon-evolutions.ts",
+  "sha256": "abab11fbb62c3f5d402be2ccc609a7a6359c94df7918e4a25c8f1c173ab5da96",
+  "formSha256": "f79dc5201cfe985f17fbe3cf7a2e2fd55572dae5aff41cf0ea3698289f602cce",
+  "conditions": 115,
+  "records": {
+    "SLOWPOKE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "kingsRock"
+        }
+      ]
+    },
+    "CUBONE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "biome",
+          "not": false,
+          "value": "ISLAND"
+        }
+      ]
+    },
+    "TYROGUE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "stats",
+          "value": ">"
+        }
+      ]
+    },
+    "TYROGUE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "stats",
+          "value": "<"
+        }
+      ]
+    },
+    "TYROGUE:2": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "stats",
+          "value": "==="
+        }
+      ]
+    },
+    "KOFFING:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "biome",
+          "not": false,
+          "value": "METROPOLIS"
+        }
+      ]
+    },
+    "QUILAVA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "QUILAVA:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "WURMPLE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "WURMPLE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "KIRLIA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "KIRLIA:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "NINCADA:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "and",
+          "values": [
+            {
+              "kind": "partySpace"
+            },
+            {
+              "kind": "pokeball"
+            }
+          ]
+        }
+      ]
+    },
+    "SNORUNT:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "BURMY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "BURMY:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "COMBEE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "DEWOTT:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "DEWOTT:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "RUFFLET:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "RUFFLET:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "PANCHAM:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "partyType",
+          "value": "DARK"
+        }
+      ]
+    },
+    "ESPURR:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "ESPURR:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "TYRUNT:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "AMAURA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "GOOMY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "GOOMY:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "SLIGGOO:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "weather",
+          "values": [
+            "RAIN",
+            "FOG",
+            "HEAVY_RAIN"
+          ]
+        }
+      ]
+    },
+    "BERGMITE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "BERGMITE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "DARTRIX:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "DARTRIX:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "YUNGOOS:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "FOMANTIS:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "SALANDIT:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "COSMOEM:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "and",
+          "values": [
+            {
+              "kind": "biome",
+              "not": true,
+              "value": "SPACE"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "COSMOEM:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "and",
+          "values": [
+            {
+              "kind": "biome",
+              "not": true,
+              "value": "SPACE"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "ALOLA_RATTATA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "TOXEL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "nature",
+          "values": [
+            "LONELY",
+            "BOLD",
+            "RELAXED",
+            "TIMID",
+            "SERIOUS",
+            "MODEST",
+            "MILD",
+            "QUIET",
+            "BASHFUL",
+            "CALM",
+            "GENTLE",
+            "CAREFUL"
+          ]
+        }
+      ]
+    },
+    "GALAR_LINOONE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "HISUI_SLIGGOO:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "weather",
+          "values": [
+            "RAIN",
+            "FOG",
+            "HEAVY_RAIN"
+          ]
+        }
+      ]
+    },
+    "LECHONK:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "LECHONK:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "GREAVARD:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "PIKACHU:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "biome",
+          "not": false,
+          "value": "ISLAND"
+        }
+      ]
+    },
+    "POLIWHIRL:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "kingsRock"
+        }
+      ]
+    },
+    "EXEGGCUTE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "biome",
+          "not": false,
+          "value": "ISLAND"
+        }
+      ]
+    },
+    "TANGELA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "ANCIENT_POWER"
+        }
+      ]
+    },
+    "LICKITUNG:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "ROLLOUT"
+        }
+      ]
+    },
+    "EEVEE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        },
+        {
+          "kind": "moveType",
+          "value": "FAIRY"
+        }
+      ]
+    },
+    "EEVEE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        },
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "EEVEE:2": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        },
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "AIPOM:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "DOUBLE_HIT"
+        }
+      ]
+    },
+    "YANMA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "ANCIENT_POWER"
+        }
+      ]
+    },
+    "GIRAFARIG:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "TWIN_BEAM"
+        }
+      ]
+    },
+    "DUNSPARCE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "and",
+          "values": [
+            {
+              "kind": "move",
+              "value": "HYPER_DRILL"
+            },
+            {
+              "kind": "seededChance",
+              "value": 4
+            }
+          ]
+        }
+      ]
+    },
+    "DUNSPARCE:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "HYPER_DRILL"
+        }
+      ]
+    },
+    "GLIGAR:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "SNEASEL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "PILOSWINE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "ANCIENT_POWER"
+        }
+      ]
+    },
+    "STANTLER:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "PSYSHIELD_BASH"
+        }
+      ]
+    },
+    "BONSLY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "MIMIC"
+        }
+      ]
+    },
+    "MIME_JR:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "and",
+          "values": [
+            {
+              "kind": "move",
+              "value": "MIMIC"
+            },
+            {
+              "kind": "or",
+              "values": [
+                {
+                  "kind": "biome",
+                  "not": false,
+                  "value": "ICE_CAVE"
+                },
+                {
+                  "kind": "biome",
+                  "not": false,
+                  "value": "SNOWY_FOREST"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "MIME_JR:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "MIMIC"
+        }
+      ]
+    },
+    "MANTYKE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "partySpecies",
+          "value": "REMORAID"
+        }
+      ]
+    },
+    "PETILIL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "PETILIL:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "BASCULIN:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "BASCULIN:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "ROCKRUFF:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "ROCKRUFF:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "defaultForm",
+          "value": 1
+        }
+      ]
+    },
+    "ROCKRUFF:2": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "NIGHT"
+        }
+      ]
+    },
+    "STEENEE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "STOMP"
+        }
+      ]
+    },
+    "POIPOLE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "DRAGON_PULSE"
+        }
+      ]
+    },
+    "CLOBBOPUS:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "TAUNT"
+        }
+      ]
+    },
+    "HISUI_QWILFISH:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "BARB_BARRAGE"
+        }
+      ]
+    },
+    "HISUI_SNEASEL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "time",
+          "value": "DAY"
+        }
+      ]
+    },
+    "DIPPLIN:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "DRAGON_CHEER"
+        }
+      ]
+    },
+    "ONIX:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "moveType",
+          "value": "STEEL"
+        }
+      ]
+    },
+    "RHYDON:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "SEADRA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "SCYTHER:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "moveType",
+          "value": "STEEL"
+        }
+      ]
+    },
+    "ELECTABUZZ:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "MAGMAR:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "PORYGON:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "PORYGON2:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "FEEBAS:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "DUSCLOPS:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "CLAMPERL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "MALE"
+        }
+      ]
+    },
+    "CLAMPERL:1": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "gender",
+          "value": "FEMALE"
+        }
+      ]
+    },
+    "KARRABLAST:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "partySpecies",
+          "value": "SHELMET"
+        }
+      ]
+    },
+    "SHELMET:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "partySpecies",
+          "value": "KARRABLAST"
+        }
+      ]
+    },
+    "SPRITZEE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "SWIRLIX:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "always"
+        }
+      ]
+    },
+    "PRIMEAPE:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "move",
+          "value": "RAGE_FIST"
+        }
+      ]
+    },
+    "PICHU:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "CLEFFA:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "IGGLYBUFF:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "GOLBAT:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 110
+        }
+      ]
+    },
+    "CHANSEY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 200
+        }
+      ]
+    },
+    "MUNCHLAX:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 90
+        }
+      ]
+    },
+    "TOGEPI:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "AZURILL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "BUDEW:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        },
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "CHINGLING:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        },
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "BUNEARY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 90
+        }
+      ]
+    },
+    "HAPPINY:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 160
+        }
+      ]
+    },
+    "RIOLU:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 90
+        },
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DAWN"
+            },
+            {
+              "kind": "time",
+              "value": "DAY"
+            }
+          ]
+        }
+      ]
+    },
+    "WOOBAT:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "SWADLOON:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 110
+        }
+      ]
+    },
+    "TYPE_NULL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 80
+        }
+      ]
+    },
+    "ALOLA_MEOWTH:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    },
+    "SNOM:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 90
+        },
+        {
+          "kind": "or",
+          "values": [
+            {
+              "kind": "time",
+              "value": "DUSK"
+            },
+            {
+              "kind": "time",
+              "value": "NIGHT"
+            }
+          ]
+        }
+      ]
+    },
+    "GIMMIGHOUL:0": {
+      "kind": "and",
+      "values": [
+        {
+          "kind": "friendship",
+          "value": 70
+        }
+      ]
+    }
+  },
+  "forms": {
+    "VENUSAUR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.VENUSAURITE"
+        ]
+      },
+      "conditions": []
+    },
+    "VENUSAUR:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "BLASTOISE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.BLASTOISINITE"
+        ]
+      },
+      "conditions": []
+    },
+    "BLASTOISE:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "CHARIZARD:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.CHARIZARDITE_X"
+        ]
+      },
+      "conditions": []
+    },
+    "CHARIZARD:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.CHARIZARDITE_Y"
+        ]
+      },
+      "conditions": []
+    },
+    "CHARIZARD:2": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "BUTTERFREE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "BEEDRILL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.BEEDRILLITE"
+        ]
+      },
+      "conditions": []
+    },
+    "PIDGEOT:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.PIDGEOTITE"
+        ]
+      },
+      "conditions": []
+    },
+    "PIKACHU:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "MEOWTH:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "ALAKAZAM:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ALAKAZITE"
+        ]
+      },
+      "conditions": []
+    },
+    "MACHAMP:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "SLOWBRO:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SLOWBRONITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GENGAR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GENGARITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GENGAR:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "KINGLER:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "KANGASKHAN:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.KANGASKHANITE"
+        ]
+      },
+      "conditions": []
+    },
+    "PINSIR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.PINSIRITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GYARADOS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GYARADOSITE"
+        ]
+      },
+      "conditions": []
+    },
+    "LAPRAS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "EEVEE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "SNORLAX:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "AERODACTYL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.AERODACTYLITE"
+        ]
+      },
+      "conditions": []
+    },
+    "MEWTWO:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MEWTWONITE_X"
+        ]
+      },
+      "conditions": []
+    },
+    "MEWTWO:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MEWTWONITE_Y"
+        ]
+      },
+      "conditions": []
+    },
+    "AMPHAROS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.AMPHAROSITE"
+        ]
+      },
+      "conditions": []
+    },
+    "STEELIX:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.STEELIXITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SCIZOR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SCIZORITE"
+        ]
+      },
+      "conditions": []
+    },
+    "HERACROSS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.HERACRONITE"
+        ]
+      },
+      "conditions": []
+    },
+    "HOUNDOOM:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.HOUNDOOMINITE"
+        ]
+      },
+      "conditions": []
+    },
+    "TYRANITAR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.TYRANITARITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SCEPTILE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SCEPTILITE"
+        ]
+      },
+      "conditions": []
+    },
+    "BLAZIKEN:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.BLAZIKENITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SWAMPERT:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SWAMPERTITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GARDEVOIR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GARDEVOIRITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SABLEYE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SABLENITE"
+        ]
+      },
+      "conditions": []
+    },
+    "MAWILE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAWILITE"
+        ]
+      },
+      "conditions": []
+    },
+    "AGGRON:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.AGGRONITE"
+        ]
+      },
+      "conditions": []
+    },
+    "MEDICHAM:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MEDICHAMITE"
+        ]
+      },
+      "conditions": []
+    },
+    "MANECTRIC:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MANECTITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SHARPEDO:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SHARPEDONITE"
+        ]
+      },
+      "conditions": []
+    },
+    "CAMERUPT:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.CAMERUPTITE"
+        ]
+      },
+      "conditions": []
+    },
+    "ALTARIA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ALTARIANITE"
+        ]
+      },
+      "conditions": []
+    },
+    "BANETTE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.BANETTITE"
+        ]
+      },
+      "conditions": []
+    },
+    "ABSOL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ABSOLITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GLALIE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GLALITITE"
+        ]
+      },
+      "conditions": []
+    },
+    "SALAMENCE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SALAMENCITE"
+        ]
+      },
+      "conditions": []
+    },
+    "METAGROSS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.METAGROSSITE"
+        ]
+      },
+      "conditions": []
+    },
+    "LATIAS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LATIASITE"
+        ]
+      },
+      "conditions": []
+    },
+    "LATIOS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LATIOSITE"
+        ]
+      },
+      "conditions": []
+    },
+    "KYOGRE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.BLUE_ORB"
+        ]
+      },
+      "conditions": []
+    },
+    "GROUDON:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.RED_ORB"
+        ]
+      },
+      "conditions": []
+    },
+    "RAYQUAZA:0": {
+      "trigger": {
+        "kind": "and",
+        "values": [
+          {
+            "kind": "ItemTrigger",
+            "values": [
+              "FormChangeItem.RAYQUAZITE"
+            ]
+          },
+          {
+            "kind": "MoveLearnedTrigger",
+            "values": [
+              "Moves.DRAGON_ASCENT"
+            ]
+          }
+        ]
+      },
+      "conditions": []
+    },
+    "LOPUNNY:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LOPUNNITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GARCHOMP:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GARCHOMPITE"
+        ]
+      },
+      "conditions": []
+    },
+    "LUCARIO:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LUCARIONITE"
+        ]
+      },
+      "conditions": []
+    },
+    "ABOMASNOW:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ABOMASITE"
+        ]
+      },
+      "conditions": []
+    },
+    "GALLADE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GALLADITE"
+        ]
+      },
+      "conditions": []
+    },
+    "AUDINO:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.AUDINITE"
+        ]
+      },
+      "conditions": []
+    },
+    "DIALGA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ADAMANT_CRYSTAL"
+        ]
+      },
+      "conditions": []
+    },
+    "PALKIA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LUSTROUS_ORB"
+        ]
+      },
+      "conditions": []
+    },
+    "GIRATINA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.GRISEOUS_CORE"
+        ]
+      },
+      "conditions": []
+    },
+    "SHAYMIN:0": {
+      "trigger": {
+        "kind": "and",
+        "values": [
+          {
+            "kind": "TimeOfDayTrigger",
+            "values": [
+              "TimeOfDay.DAY",
+              "TimeOfDay.DUSK"
+            ]
+          },
+          {
+            "kind": "ItemTrigger",
+            "values": [
+              "FormChangeItem.GRACIDEA"
+            ]
+          },
+          {
+            "kind": "StatusEffectTrigger",
+            "values": [
+              "StatusEffect.FREEZE",
+              true
+            ]
+          }
+        ]
+      },
+      "conditions": []
+    },
+    "SHAYMIN:1": {
+      "trigger": {
+        "kind": "TimeOfDayTrigger",
+        "values": [
+          "TimeOfDay.DAWN",
+          "TimeOfDay.NIGHT"
+        ]
+      },
+      "conditions": []
+    },
+    "SHAYMIN:2": {
+      "trigger": {
+        "kind": "StatusEffectTrigger",
+        "values": [
+          "StatusEffect.FREEZE"
+        ]
+      },
+      "conditions": []
+    },
+    "DARMANITAN:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "DARMANITAN:1": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "GARBODOR:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "TORNADUS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.REVEAL_GLASS"
+        ]
+      },
+      "conditions": []
+    },
+    "THUNDURUS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.REVEAL_GLASS"
+        ]
+      },
+      "conditions": []
+    },
+    "LANDORUS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.REVEAL_GLASS"
+        ]
+      },
+      "conditions": []
+    },
+    "KYUREM:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.DARK_STONE"
+        ]
+      },
+      "conditions": []
+    },
+    "KYUREM:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.LIGHT_STONE"
+        ]
+      },
+      "conditions": []
+    },
+    "KELDEO:0": {
+      "trigger": {
+        "kind": "MoveLearnedTrigger",
+        "values": [
+          "Moves.SECRET_SWORD"
+        ]
+      },
+      "conditions": []
+    },
+    "KELDEO:1": {
+      "trigger": {
+        "kind": "MoveLearnedTrigger",
+        "values": [
+          "Moves.SECRET_SWORD",
+          false
+        ]
+      },
+      "conditions": []
+    },
+    "MELOETTA:0": {
+      "trigger": {
+        "kind": "PostMoveTrigger",
+        "values": [
+          "Moves.RELIC_SONG"
+        ]
+      },
+      "conditions": []
+    },
+    "MELOETTA:1": {
+      "trigger": {
+        "kind": "PostMoveTrigger",
+        "values": [
+          "Moves.RELIC_SONG"
+        ]
+      },
+      "conditions": []
+    },
+    "MELOETTA:2": {
+      "trigger": {
+        "kind": "ActiveTrigger",
+        "values": [
+          false
+        ]
+      },
+      "conditions": []
+    },
+    "AEGISLASH:0": {
+      "trigger": {
+        "kind": "PreMoveTrigger",
+        "values": [
+          "Moves.KINGS_SHIELD"
+        ]
+      },
+      "conditions": [
+        {
+          "kind": "ability",
+          "value": "STANCE_CHANGE"
+        }
+      ]
+    },
+    "AEGISLASH:1": {
+      "trigger": {
+        "kind": "PreMoveTrigger",
+        "values": [
+          "ATTACK_MOVE"
+        ]
+      },
+      "conditions": [
+        {
+          "kind": "ability",
+          "value": "STANCE_CHANGE"
+        }
+      ]
+    },
+    "DIANCIE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.DIANCITE"
+        ]
+      },
+      "conditions": []
+    },
+    "HOOPA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.PRISON_BOTTLE"
+        ]
+      },
+      "conditions": []
+    },
+    "WISHIWASHI:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "WISHIWASHI:1": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "NECROZMA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.N_LUNARIZER"
+        ]
+      },
+      "conditions": []
+    },
+    "NECROZMA:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.N_SOLARIZER"
+        ]
+      },
+      "conditions": []
+    },
+    "MELMETAL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "RILLABOOM:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "CINDERACE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "INTELEON:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "CORVIKNIGHT:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "ORBEETLE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "DREDNAW:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "COALOSSAL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "FLAPPLE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "APPLETUN:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "SANDACONDA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "TOXTRICITY:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "TOXTRICITY:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "TOXTRICITY:2": {
+      "trigger": {
+        "kind": "and",
+        "values": [
+          {
+            "kind": "ItemTrigger",
+            "values": [
+              "FormChangeItem.MAX_MUSHROOMS",
+              false
+            ]
+          },
+          {
+            "kind": "defaultMatch",
+            "value": "amped"
+          }
+        ]
+      },
+      "conditions": []
+    },
+    "TOXTRICITY:3": {
+      "trigger": {
+        "kind": "and",
+        "values": [
+          {
+            "kind": "ItemTrigger",
+            "values": [
+              "FormChangeItem.MAX_MUSHROOMS",
+              false
+            ]
+          },
+          {
+            "kind": "defaultMatch",
+            "value": "lowkey"
+          }
+        ]
+      },
+      "conditions": []
+    },
+    "CENTISKORCH:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "HATTERENE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "GRIMMSNARL:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "ALCREMIE:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "MORPEKO:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "MORPEKO:1": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "COPPERAJAH:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "DURALUDON:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "ZACIAN:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.RUSTED_SWORD"
+        ]
+      },
+      "conditions": []
+    },
+    "ZAMAZENTA:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.RUSTED_SHIELD"
+        ]
+      },
+      "conditions": []
+    },
+    "ETERNATUS:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "ETERNATUS:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "URSHIFU:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "URSHIFU:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.MAX_MUSHROOMS"
+        ]
+      },
+      "conditions": []
+    },
+    "CALYREX:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.ICY_REINS_OF_UNITY"
+        ]
+      },
+      "conditions": []
+    },
+    "CALYREX:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.SHADOW_REINS_OF_UNITY"
+        ]
+      },
+      "conditions": []
+    },
+    "ENAMORUS:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.REVEAL_GLASS"
+        ]
+      },
+      "conditions": []
+    },
+    "OGERPON:0": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.WELLSPRING_MASK"
+        ]
+      },
+      "conditions": []
+    },
+    "OGERPON:1": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.HEARTHFLAME_MASK"
+        ]
+      },
+      "conditions": []
+    },
+    "OGERPON:2": {
+      "trigger": {
+        "kind": "ItemTrigger",
+        "values": [
+          "FormChangeItem.CORNERSTONE_MASK"
+        ]
+      },
+      "conditions": []
+    },
+    "TERAPAGOS:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "GALAR_DARMANITAN:0": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    },
+    "GALAR_DARMANITAN:1": {
+      "trigger": {
+        "kind": "ManualTrigger",
+        "values": []
+      },
+      "conditions": []
+    }
+  }
+}

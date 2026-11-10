@@ -6,6 +6,7 @@ export default abstract class UiHandler {
   protected mode: integer;
   protected cursor: integer = 0;
   public active: boolean = false;
+  public captureMenuInput = false;
   private pointerBindings = new WeakMap<Phaser.GameObjects.GameObject, Function>();
 
   constructor(scene: BattleScene, mode: Mode) {

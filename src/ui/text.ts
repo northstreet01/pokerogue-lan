@@ -19,7 +19,8 @@ export enum TextStyle {
   SETTINGS_LABEL,
   SETTINGS_SELECTED,
   TOOLTIP_TITLE,
-  TOOLTIP_CONTENT
+  TOOLTIP_CONTENT,
+  SHADOW_TEXT
 };
 
 function isCjkLanguage(): boolean {
@@ -152,6 +153,8 @@ export function getTextColor(textStyle: TextStyle, shadow?: boolean): string {
     case TextStyle.WINDOW:
     case TextStyle.TOOLTIP_CONTENT:
       return !shadow ? '#484848' : '#d0d0c8';
+    case TextStyle.SHADOW_TEXT:
+      return '#d0d0c8';
     case TextStyle.BATTLE_INFO:
       return !shadow ? '#404040' : '#ded6b5';
     case TextStyle.PARTY:
@@ -174,6 +177,19 @@ export function getTextColor(textStyle: TextStyle, shadow?: boolean): string {
       return !shadow ? '#f8b050' : '#c07800';
     case TextStyle.SETTINGS_SELECTED:
       return !shadow ? '#f88880' : '#f83018';
+  }
+}
+
+// Ported from upstream ui/text.ts; WINDOW is the early client's legacy theme.
+export const RAINBOW_TINT = [0xffef5c, 0x47ff69, 0x6b6bff, 0xff6969];
+export function updateCandyCountTextStyle(text: Phaser.GameObjects.Text | BBCodeText, candyCount: number,
+  defaultStyle: TextStyle = TextStyle.WINDOW, maxStyle: TextStyle = TextStyle.SUMMARY_GOLD) {
+  if (candyCount >= 9999) {
+    text.setColor(getTextColor(maxStyle));
+    text.setTint(...RAINBOW_TINT);
+  } else {
+    text.setColor(getTextColor(defaultStyle));
+    text.clearTint();
   }
 }
 

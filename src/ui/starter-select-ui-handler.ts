@@ -25,9 +25,8 @@ import { Type } from "../data/type";
 import { Moves } from "../data/enums/moves";
 import { speciesEggMoves } from "../data/egg-moves";
 import { TitlePhase } from "../phases";
-import { mountStarterBrowser } from './starter-browser.mjs';
-import './starter-browser.css';
-import { deviceStorage } from '../platform/preferences.mjs';
+import { OriginalStarterBrowser } from './original-starter-browser';
+import {formDisplayName} from './pokedex-world-data';
 
 export type StarterSelectCallback = (starters: Starter[]) => void;
 
@@ -42,7 +41,10 @@ export interface Starter {
 const gens = [ 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX' ];
 
 export default class StarterSelectUiHandler extends MessageUiHandler {
-  private releaseBrowser?: () => void;
+  private browser?: OriginalStarterBrowser;
+  private detailOnlyPreview = false;
+  private detailFormIndex?: number;
+  private browserPreview = false;
   private starterSelectContainer: Phaser.GameObjects.Container;
   private shinyOverlay: Phaser.GameObjects.Image;
   private starterSelectGenIconContainers: Phaser.GameObjects.Container[];
@@ -514,31 +516,30 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
       this.starterChangeSignature = '';
       this.notifyStarterChange();
 
-      this.releaseBrowser?.();
-      this.releaseBrowser = mountStarterBrowser({entries:this.genSpecies.flat(),data:this.selectionData,
-        types:Object.keys(Type).filter(key=>Number.isInteger(Number(key))&&Number(key)>=0)
-          .map(key=>[key,i18next.t(`pokemonInfo:type.${Type[Number(key)].toLowerCase()}`,{defaultValue:Type[Number(key)]})]),
-        storage:deviceStorage(),blocked:(id:number)=>!!this.starterSelectOptions.isSpeciesBlocked?.(id),
-        hasRibbon:(id:number)=>this.scene.gameData.hasClassicRibbon(id),
-        candyInfo:(id:number)=>this.scene.gameData.candyInfo(id),
-        onCandyAction:this.scene.gameData.canBuyCandyReduction?(id:number,kind:any)=>this.scene.gameData.purchaseCandyUpgrade(id,kind):undefined,
-        onReduceCost:this.scene.gameData.canBuyCandyReduction?(id:number)=>this.scene.gameData.purchaseCostReduction(id):undefined,
-        describe:(species:PokemonSpecies)=>{
-          const data=this.selectionData,dex=data.dexData[species.speciesId];
-          const attrs=data.getSpeciesDexAttrProps(species,data.getSpeciesDefaultDexAttr(species));
-          const ability=allAbilities[species.getAbility(attrs.abilityIndex)];
-          const eggs=speciesEggMoves[species.speciesId]??[],mask=data.starterEggMoveData[species.speciesId]??0;
-          return [`${species.name} · 图鉴 ${species.speciesId}`,
-            '当前可选图鉴资料（房间共享不代表永久解锁）',
-            `状态：${dex?.caughtAttr?'已解锁':dex?.seenAttr?'已遇见':'未解锁'} · 费用 ${data.getSpeciesStarterValue(species.speciesId)}`,
-            `种族值总和：${species.baseTotal}`,
-            `本人经典通关缎带：${this.scene.gameData.hasClassicRibbon(species.speciesId)?'已获得':'未获得'}`,
-            `默认特性：${ability.name}\n${ability.description}`,
-            `最高IV（HP/攻击/防御/特攻/特防/速度）：${dex?.ivs?.join('/')??'暂无'}`,
-            '蛋招：'+(eggs.length?eggs.map((id,index)=>`${mask&(1<<index)?'已解锁':'未解锁'} ${allMoves[id].name}`).join('\n'):'暂无'),
-            '招式／特性名称中的 (N) 表示未实现，(P) 表示部分实现。'].join('\n');
+      this.browser?.destroy();
+      this.browser = this.createBrowser({
+        entries: this.genSpecies.flat(), data: this.selectionData, personal: this.scene.gameData,
+        readOnly: !!this.starterSelectOptions.readOnly,
+        allowed: () => this.active && this.scene.ui.getMode() === Mode.STARTER_SELECT && !this.pendingPrompt,
+        blocked: id => !!this.starterSelectOptions.isSpeciesBlocked?.(id),
+        pokerus: id => this.pokerusGens.some((gen, n) => this.genSpecies[gen][this.pokerusCursors[n]]?.speciesId === id),
+        bind: (target, action) => this.bindPointer(target, action, null),
+        preview: (species, formIndex, detailOnly = false) => {
+          if (this.statsMode) this.toggleStatsMode(false);
+          const changed = this.detailOnlyPreview !== detailOnly || this.detailFormIndex !== formIndex;
+          this.detailOnlyPreview = detailOnly; this.detailFormIndex = formIndex;
+          this.browserPreview = true;
+          try { if (this.lastSpecies !== species || changed) this.setSpecies(species); }
+          finally { this.browserPreview = false; }
+          if(detailOnly && formIndex!==undefined) this.pokemonNameText.setText(formDisplayName(species,formIndex));
         },
-        onLocate:(species:PokemonSpecies)=>{
+        detailPreview: active => {
+          this.pokemonMovesContainer.setVisible(!active && !this.statsMode);
+          this.pokemonEggMovesContainer.setVisible(!active && !this.statsMode && !!this.lastSpecies && Object.hasOwn(speciesEggMoves, this.lastSpecies.speciesId));
+          if (active) this.instructionsText.setText('↑↓ 分类  Enter 查看\n←→ 操作  Esc 返回');
+          else this.updateInstructions();
+        },
+        choose:(species:PokemonSpecies)=>{
           if(!this.active||this.scene.ui.getMode()!==Mode.STARTER_SELECT)return;
           const gen=species.generation-1,index=this.genSpecies[gen].indexOf(species);
           if(index<0)return;
@@ -550,7 +551,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
           this.genScrollCursor=Math.min(Math.max(gen-1,0),gens.length-3);
           this.updateGenOptions();this.setCursor(gen-this.genScrollCursor);
           this.setGenMode(false);this.setCursor(index);this.scene.ui.playSelect();
+          if (!this.starterSelectOptions.readOnly) this.processInput(Button.ACTION);
         }});
+
+      this.browser.open();
 
       if (!this.starterSelectOptions.readOnly) handleTutorial(this.scene, Tutorial.Starter_Select);
 
@@ -558,6 +562,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
     }
 
     return false;
+  }
+
+  protected createBrowser(options: ConstructorParameters<typeof OriginalStarterBrowser>[2]): OriginalStarterBrowser {
+    return new OriginalStarterBrowser(this.scene, this.starterSelectContainer, options);
   }
 
   showText(text: string, delay?: integer, callback?: Function, callbackDelay?: integer, prompt?: boolean, promptDelay?: integer) {
@@ -1039,8 +1047,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
       const dexAttr = this.selectionData.getSpeciesDefaultDexAttr(this.lastSpecies);
       const props = this.selectionData.getSpeciesDexAttrProps(this.lastSpecies, dexAttr);
       const lastSpeciesIcon = (this.starterSelectGenIconContainers[this.lastSpecies.generation - 1].getAt(this.genSpecies[this.lastSpecies.generation - 1].indexOf(this.lastSpecies)) as Phaser.GameObjects.Sprite);
-      lastSpeciesIcon.setFrame(this.lastSpecies.getIconId(props.female, props.formIndex, props.shiny));
-      this.iconAnimHandler.addOrUpdate(lastSpeciesIcon, PokemonIconAnimMode.NONE);
+      if (lastSpeciesIcon) {
+        lastSpeciesIcon.setFrame(this.lastSpecies.getIconId(props.female, props.formIndex, props.shiny));
+        this.iconAnimHandler.addOrUpdate(lastSpeciesIcon, PokemonIconAnimMode.NONE);
+      }
     }
 
     this.lastSpecies = species;
@@ -1060,7 +1070,8 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
         this.pokemonCaughtCountLabelText.setVisible(true);
         this.pokemonCaughtCountText.setText(`${this.speciesStarterDexEntry.caughtCount}/${this.speciesStarterDexEntry.hatchedCount} (${this.speciesStarterDexEntry.caughtCount + this.speciesStarterDexEntry.hatchedCount})`);
         this.pokemonCaughtCountText.setVisible(true);
-        this.iconAnimHandler.addOrUpdate(this.starterSelectGenIconContainers[species.generation - 1].getAt(this.genSpecies[species.generation - 1].indexOf(species)) as Phaser.GameObjects.Sprite, PokemonIconAnimMode.PASSIVE);
+        const speciesIcon = this.starterSelectGenIconContainers[species.generation - 1].getAt(this.genSpecies[species.generation - 1].indexOf(species)) as Phaser.GameObjects.Sprite;
+        if (speciesIcon) this.iconAnimHandler.addOrUpdate(speciesIcon, PokemonIconAnimMode.PASSIVE);
 
         let starterIndex = -1;
 
@@ -1117,6 +1128,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
   }
 
   setSpeciesDetails(species: PokemonSpecies, shiny: boolean, formIndex: integer, female: boolean, abilityIndex: integer, natureIndex: integer, forSeen: boolean = false): void {
+    if (this.detailOnlyPreview && this.detailFormIndex !== undefined) formIndex = this.detailFormIndex;
     const oldProps = species ? this.selectionData.getSpeciesDexAttrProps(species, this.dexAttrCursor) : null;
     this.dexAttrCursor = 0n;
 
@@ -1148,7 +1160,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
         const defaultNature = this.selectionData.getSpeciesDefaultNature(species);
         if (shiny === undefined || shiny !== props.shiny)
           shiny = props.shiny;
-        if (formIndex === undefined || formIndex !== props.formIndex)
+        if (!this.detailOnlyPreview && (formIndex === undefined || formIndex !== props.formIndex))
           formIndex = props.formIndex;
         if (female === undefined || female !== props.female)
           female = props.female;
@@ -1174,7 +1186,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
           return true;
         });
 
-        if (starterIndex > -1) {
+        if (starterIndex > -1 && !this.browserPreview) {
           this.starterAttr[starterIndex] = this.dexAttrCursor;
           this.starterNatures[starterIndex] = this.natureCursor;
         }
@@ -1196,7 +1208,10 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
           }
         });
 
-        (this.starterSelectGenIconContainers[this.getGenCursorWithScroll()].getAt(this.cursor) as Phaser.GameObjects.Sprite).setFrame(species.getIconId(female, formIndex, shiny));
+        // Search preview can point at a different generation from the legacy grid.
+        // Update that species' icon, never the unrelated legacy cursor's slot.
+        const speciesIcon = this.starterSelectGenIconContainers[species.generation - 1].getAt(this.genSpecies[species.generation - 1].indexOf(species)) as Phaser.GameObjects.Sprite;
+        speciesIcon?.setFrame(species.getIconId(female, formIndex, shiny));
 
         this.canCycleShiny = !!(dexEntry.caughtAttr & DexAttr.NON_SHINY && dexEntry.caughtAttr & DexAttr.SHINY);
         this.canCycleGender = !!(dexEntry.caughtAttr & DexAttr.MALE && dexEntry.caughtAttr & DexAttr.FEMALE);
@@ -1215,10 +1230,11 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
         this.pokemonGenderText.setText('');
 
       if (dexEntry.caughtAttr) {
-        const ability = species.getAbility(abilityIndex);
+        const displayedForm=this.detailOnlyPreview ? species.forms[formIndex]??species : species;
+        const ability = displayedForm.getAbility(abilityIndex);
         this.pokemonAbilityText.setText(allAbilities[ability].name);
 
-        const isHidden = ability === species.abilityHidden;
+        const isHidden = ability === displayedForm.abilityHidden;
         this.pokemonAbilityText.setColor(getTextColor(!isHidden ? TextStyle.SUMMARY : TextStyle.SUMMARY_GOLD));
         this.pokemonAbilityText.setShadowColor(getTextColor(!isHidden ? TextStyle.SUMMARY : TextStyle.SUMMARY_GOLD, true));
 
@@ -1264,7 +1280,7 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
     if (!this.starterMoveset)
       this.starterMoveset = this.speciesStarterMoves.slice(0, 4) as StarterMoveset;
 
-    if (this.starterSelectOptions.onChange && !this.restoringStarters) {
+    if (this.starterSelectOptions.onChange && !this.restoringStarters && !this.browserPreview) {
       const selectedIndex = this.starterGens.findIndex((gen, index) =>
         this.genSpecies[gen][this.starterCursors[index]] === species);
       if (selectedIndex >= 0) this.starterMovesets[selectedIndex] = this.starterMoveset.slice(0) as StarterMoveset;
@@ -1465,7 +1481,8 @@ export default class StarterSelectUiHandler extends MessageUiHandler {
 
   clear(): void {
     super.clear();
-    this.releaseBrowser?.();this.releaseBrowser=undefined;
+    this.browser?.destroy(); this.browser = undefined;
+    this.detailOnlyPreview = false; this.detailFormIndex = undefined;
     if (this.assetLoadCancelled) this.assetLoadCancelled.value = true;
     this.cursor = -1;
     this.starterSelectContainer.setVisible(false);

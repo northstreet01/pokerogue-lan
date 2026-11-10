@@ -1,10 +1,11 @@
-// Balance values from upstream src/data/balance/starters.ts. Offline play
-// uses the regular classic multiplier, without timed-event overrides.
-export const reductionPrices=[[25,60],[25,60],[20,50],[15,40],[12,35],[10,30],[8,20],[5,15],[5,15],[5,15]];
-export const friendshipCaps=[25,50,75,100,150,200,300,450,450,600];
-export const passivePrices=[40,40,35,30,25,20,15,10,10,10];
-const eggPrices=[[30,27,22,15],[30,27,22,15],[25,22,18,12],[20,18,15,10],[18,16,13,9],[15,13,11,7],[12,10,9,6],[10,9,7,5],[10,9,7,5],[10,9,7,5]];
-export function sameSpeciesEggPrice(cost,hatched){const thresholds=cost<=3?[20,40,80]:cost<=6?[15,30,60]:cost<=9?[10,20,40]:[8,16,32];return eggPrices[cost-1][thresholds.filter(n=>hatched>=n).length];}
+import {getValueReductionCandyCounts, getStarterValueFriendshipCap, getPassiveCandyCount,
+ getSameSpeciesEggCandyCounts, CLASSIC_CANDY_FRIENDSHIP_MULTIPLIER} from '../data/balance/starter-candy.mjs';
+// Compatibility views for early callers; all prices and thresholds come from
+// the imported upstream functions. Old discounts and reliable saving stay here.
+export const reductionPrices=Array.from({length:10},(_,n)=>getValueReductionCandyCounts(n+1));
+export const friendshipCaps=Array.from({length:10},(_,n)=>getStarterValueFriendshipCap(n+1));
+export const passivePrices=Array.from({length:10},(_,n)=>getPassiveCandyCount(n+1));
+export const sameSpeciesEggPrice=getSameSpeciesEggCandyCounts;
 export const emptyCandy=()=>({candies:0,friendship:0,reduction:0});
 export function validateCandy(data, costs){
  if(!data||typeof data!=='object'||Array.isArray(data))throw Error('INVALID_STARTER_CANDY');
@@ -32,5 +33,5 @@ export function buyReduction(entry,cost,count){
 export function candyFriendshipParts(pokemon,amount,classic,daily){
  if(daily||amount<=0)return [];
  const ids=[pokemon.species.getRootSpeciesId()];if(pokemon.fusionSpecies)ids.push(pokemon.fusionSpecies.getRootSpeciesId());
- return ids.map(speciesId=>({speciesId,points:Math.floor(amount*(classic?3:1)/ids.length)}));
+ return ids.map(speciesId=>({speciesId,points:Math.floor(amount*(classic?CLASSIC_CANDY_FRIENDSHIP_MULTIPLIER:1)/ids.length)}));
 }

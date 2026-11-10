@@ -209,9 +209,114 @@ test('home Menu key uses its return path and never opens the solo save/gacha men
   const {p,scene}=home(t);await settle(p);await p.showPersonal();
   scene.isButtonPressed=b=>b===api.Button.MENU;scene.getCurrentPhase=()=>p;
   scene.ui.getMode=()=>api.Mode.STARTER_SELECT;
+  scene.ui.processInput=()=>false;
   scene.ui.setOverlayMode=()=>assert.fail('home must not open the writable solo menu');
   api.BattleScene.prototype.checkInput.call(scene);await settle(p);
   assert.equal(p.originalData,undefined);
+});
+
+test('starter catalogue owns Menu before home navigation when its imported filter is available',async t=>{
+  const {p,scene}=home(t);await settle(p);await p.showPersonal();
+  const calls=[];scene.isButtonPressed=b=>b===api.Button.MENU;scene.getCurrentPhase=()=>p;
+  scene.ui.getMode=()=>api.Mode.STARTER_SELECT;scene.ui.processInput=button=>{calls.push(button);return true;};
+  scene.ui.setOverlayMode=()=>assert.fail('catalogue must not open the solo menu');
+  let homeCalls=0;p.showHome=()=>{homeCalls++;};
+  assert.equal(api.BattleScene.prototype.checkInput.call(scene),true);
+  assert.deepEqual(calls,[api.Button.MENU]);assert.equal(homeCalls,0);
+});
+
+test('pokedex detail adapter reads shared IVs and egg moves while keeping candy and ribbons personal',async t=>{
+  const {p,scene}=home(t);await settle(p);
+  const own=new api.GameData(scene,{readOnly:true}),shared=Object.create(own);
+  shared.dexData=structuredClone(own.dexData);
+  shared.starterEggMoveData={...own.starterEggMoveData,[api.getPokemonSpecies(25).getRootSpeciesId()]:15};
+  shared.dexData[25]={...shared.dexData[25],seenAttr:149n,caughtAttr:149n,natureAttr:2,ivs:[31,30,29,28,27,26]};
+  const before=JSON.parse(own.captureSystemData());delete before.timestamp;
+  const detail=api.buildPokedexDetails(api.getPokemonSpecies(25),shared,own);
+  assert.equal(detail.caught,true);assert.deepEqual(detail.ivs,[31,30,29,28,27,26]);
+  assert.equal(detail.candy.eligible,false);assert.equal(detail.ribbons[0].unlocked,false);
+  assert.ok(detail.eggMoves.length);assert.equal(detail.eggMoves.every(move=>move.unlocked),true);
+  assert.ok(detail.tmMoves.length);assert.ok(detail.levelMoves.length);
+  const after=JSON.parse(own.captureSystemData());delete after.timestamp;
+  assert.deepEqual(after,before);
+  assert.equal(own.dexData[25].caughtAttr,0n);
+});
+
+test('evolution records follow current branches and form links without changing personal or shared data',async t=>{
+ const {p,scene}=home(t);await settle(p);
+ const own=new api.GameData(scene,{readOnly:true}),shared=Object.create(own);
+ shared.dexData=structuredClone(own.dexData);
+ const before=JSON.stringify(shared.dexData,(_k,v)=>typeof v==='bigint'?v.toString():v);
+ const bulb=api.evolutionEntries(api.getPokemonSpecies(1),0,shared);
+ assert.deepEqual(bulb.map(e=>e.species.speciesId),[2]);assert.match(bulb[0].description,/16/);
+ const ivy=api.evolutionEntries(api.getPokemonSpecies(2),0,shared);
+ assert.deepEqual(ivy.map(e=>e.species.speciesId),[1,3]);
+ const eevee=api.evolutionEntries(api.getPokemonSpecies(133),0,shared);
+ assert.equal(new Set(eevee.map(e=>e.species.speciesId)).size,8);
+ assert.ok(eevee.some(e=>e.description.includes('70')));
+ assert.ok(eevee.some(e=>e.description.includes(api.i18next.t('modifierType:EvolutionItem.THUNDER_STONE'))));
+ assert.equal(eevee.every(e=>e.unlocked===false),true);
+ assert.ok(api.evolutionFamily(133).includes(700));
+ assert.equal(JSON.stringify(shared.dexData,(_k,v)=>typeof v==='bigint'?v.toString():v),before);
+});
+
+test('habitats preserve live pool tiers, ALL/time rows and level-tree intervals without mutating the pools',()=>{
+ const custom={0:{0:{[-1]:[{1:[10],7:[11],10:[12]}],1:[10]},5:{3:[25]}}};
+ const before=JSON.stringify(custom),index=api.buildHabitatIndex(custom);
+ assert.deepEqual([...index.get(10)].sort((a,b)=>a.max-b.max).map(r=>[r.min,r.max,r.timesOfDay]),[[1,6,[-1]],[1,Infinity,[1]]]);
+ assert.equal(index.get(11)[0].max,9);assert.equal(index.get(25)[0].tier,5);
+ assert.deepEqual(index.get(25)[0].timesOfDay,[3]);assert.equal(JSON.stringify(custom),before);
+ const live=api.buildHabitatIndex();assert.ok(live.size>100);
+ const rows=api.habitatEntries(10,live);assert.ok(rows.length);
+ for(const row of rows){assert.ok(api.biomePokemonPools[row.biome][row.tier]);assert.ok(row.timesOfDay.length);}
+ assert.equal(rows.every(r=>r.description.includes(api.i18next.t('pokedexLegacy:poolNote'))),true);
+});
+
+test('all evolution descriptions are read-only and preserve exact old conditions rather than newer rules',()=>{
+ let count=0;
+ for(const [from,evos] of Object.entries(api.pokemonEvolutions))for(const [index,evo]of evos.entries()){
+  if(!evo.condition)continue;count++;
+  const saved=evo.condition.predicate;evo.condition.predicate=()=>{throw Error('PREDICATE_MUST_NOT_EXECUTE');};
+  try{
+   const text=api.evolutionConditionDescription(Number(from),index);
+   assert.equal(text.includes(api.i18next.t('pokedexLegacy:extraCondition')),false,`${from}:${index}`);
+   assert.equal(/undefined|\{\{|pokedexLegacy:|modifierType:/.test(text),false,text);
+  }finally{evo.condition.predicate=saved;}
+ }
+ assert.equal(count,115);
+ const describe=(from,to)=>api.pokemonEvolutions[from].flatMap((e,i)=>e.speciesId===to?[api.evolutionConditionDescription(from,i)]:[]).join('\n');
+ assert.match(describe(133,700),/70/);assert.ok(describe(133,700).includes(api.i18next.t('pokemonInfo:type.fairy')));
+ assert.ok(describe(133,196).includes(api.i18next.t('biome:day')));assert.equal(describe(133,196).includes(api.i18next.t('biome:dawn')),false);
+ assert.match(describe(206,982),/1\/4/);assert.ok(describe(290,292).includes(api.i18next.t('pokedexLegacy:pokeball')));
+ assert.equal(describe(112,464),''); // Protector is only a comment, not a condition.
+});
+
+test('all registered battle forms expose trigger descriptions and previews keep shared unlocks personal',async t=>{
+ const {p,scene}=home(t);await settle(p);const own=new api.GameData(scene,{readOnly:true});
+ const before=JSON.parse(own.captureSystemData());delete before.timestamp;
+ for(const [id,changes]of Object.entries(api.pokemonFormChanges)){
+  const species=api.getPokemonSpecies(Number(id)),rows=api.formEntries(species,own);
+  assert.equal(rows.length,species.forms.length);
+  for(const [i,change]of changes.entries()){
+   const text=api.formChangeDescription(Number(id),i,change);
+   assert.ok(text.length);assert.equal(/undefined|\{\{|modifierType:|pokedexLegacy:/.test(text),false,text);
+  }
+ }
+ const zard=api.getPokemonSpecies(6),rows=api.formEntries(zard,own);
+ const mega=rows.find(row=>zard.forms[row.formIndex].formKey==='mega-x');
+ assert.ok(mega);assert.ok(mega.description.includes(api.i18next.t('modifierType:FormChangeItem.CHARIZARDITE_X')));
+ const model=api.buildPokedexDetails(zard,own,own,mega.formIndex);
+ assert.equal(model.baseStats[1],130);assert.equal(model.types[1],15); // Mega X Attack / Dragon.
+ const after=JSON.parse(own.captureSystemData());delete after.timestamp;assert.deepEqual(after,before);
+});
+
+test('candy menu captures Menu so a save or confirmation cannot navigate behind its overlay',async t=>{
+  const {p,scene}=home(t);await settle(p);
+  scene.isButtonPressed=b=>b===api.Button.MENU;scene.getCurrentPhase=()=>p;
+  scene.ui.getHandler=()=>({captureMenuInput:true});scene.ui.getMode=()=>api.Mode.OPTION_SELECT;
+  const calls=[];scene.ui.processInput=button=>{calls.push(button);return false;};
+  p.showHome=()=>assert.fail('an active candy menu owns M');
+  assert.equal(api.BattleScene.prototype.checkInput.call(scene),true);assert.deepEqual(calls,[api.Button.MENU]);
 });
 
 test('original solo Title keeps game/slot options and gains a root return',async t=>{
@@ -277,6 +382,9 @@ test('original readonly Starter opens, shows owned IVs, blocks add/start/move ed
   const {scene,p}=home(t);await settle(p);scene.ui.playSelect=()=>{};
   const gd=new api.GameData(scene,{readOnly:true});scene.gameData=gd;
   const h=new api.StarterSelectUiHandler(scene),species=api.getPokemonSpecies(1),ivCalls=[],icon=renderPort();
+  // This test covers the legacy selector after closing the catalogue. The native
+  // catalogue renderer, input and purchases are exercised in starter-browser-ui.
+  h.createBrowser=()=>({open(){},processInput:()=>false,destroy(){}});
   Object.assign(h,{genSpecies:[[species]],starterSelectGenIconContainers:[{getAt:()=>icon}],
     startLabel:renderPort(),valueLimitLabel:renderPort(),starterSelectContainer:renderPort(),
     startCursorObj:renderPort(),pokemonSprite:renderPort(),statsContainer:{...renderPort(),updateIvs:ivs=>ivCalls.push(ivs)},

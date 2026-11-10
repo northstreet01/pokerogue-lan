@@ -2,7 +2,7 @@
 
 原版像素冒险，和朋友一起推进。基于 PokéRogue 历史版本制作的 **Windows 桌面单人／双人合作游戏**，玩家自己开房，本地加载图片、音乐和翻译。
 
-**1.0.0-beta.5 · Windows x64 测试版**
+**1.0.0-beta.6 · Windows x64 测试版**
 
 [下载游戏](https://github.com/northstreet01/pokerogue-lan/releases) · [反馈问题](https://github.com/northstreet01/pokerogue-lan/issues) · [更新记录](CHANGELOG.md)
 
@@ -12,7 +12,7 @@
 
 ## 下载与启动
 
-1. 在 Releases 下载 **PokeRogue-LAN-v1.0.0-beta.5-win32-x64.zip**。GitHub 自动提供的 Source code 是源码，不是游戏运行包。
+1. 在 Releases 下载 **PokeRogue-LAN-v1.0.0-beta.6-win32-x64.zip**。GitHub 自动提供的 Source code 是源码，不是游戏运行包。
 2. **完整解压** ZIP，运行其中的 **PokeRogue-LAN.exe**。无需安装 Node.js，也无需外部浏览器。
 3. 在大厅的“本地档案／存档管理”中创建或选择个人档案，再开始冒险。
 
@@ -43,6 +43,18 @@ Release 提供 `SHA256SUMS.txt`。在 PowerShell 中运行 `Get-FileHash 下载�
 | TCP 18734 | 本机游戏资源，仅监听回环地址 |
 | TCP 18735 | 默认房主服务，可在连接设置中修改 |
 | UDP 18736 | 局域网房间发现 |
+
+## 精灵查找与筛选
+
+选队和收藏现在使用游戏内的原版筛选栏与精灵图标网格。点击“世代／属性／捕获／解锁／混合／排序”设置条件；同一个排序项再次确认可切换升降序。“搜索”提供名称或编号、两个招式、两个特性条件，特性组合按普通特性与被动配对。选队默认显示当前已解锁精灵，可在捕获筛选中打开未捕获条目。
+
+方向键移动，Enter 确认，M 打开查找或跳到筛选栏，C 打开文字搜索，Esc 逐层返回。鼠标点击精灵查看预览，滚轮浏览列表，再点“详情”或“选用”；菜单和文字候选也可直接点击。糖果消费在大厅收藏的“糖果与永久降费”中进入“详情 → 使用糖果”，选择升级后确认“是”才扣款。彩色糖果显示本人的余额与亲密进度。联机可选图鉴沿用房间共享规则，糖果余额和缎带始终属于本人。
+
+详情复用原版种族值、特性及招式说明组件，可查看升级招式、蛋招、招式学习器、环境、已解锁性格、经典缎带、永久进化关系和形态，并切换 IV 图表。上下选择分类，Enter 打开列表，左右切换分类与底部操作；列表内移动或鼠标悬停查看说明，点击进化关系或形态可跳转，Esc 沿浏览历史返回。环境筛选按同进化链的遭遇池查询，说明列出普通／Boss 稀有度、时段及等级范围；实际野生形态还受等级、模式和区域影响。
+
+进化说明按当前代码展示亲密阈值、昼夜、性别、招式、队伍、道具和特殊分支要求；已知无法满足的旧版分支会明确提示。形态页可查看 Mega、超极巨及其他变化的触发记录并预览资料；灰显表示当前图鉴未登记该形态，预览不会授予解锁、消费道具或改动队伍。
+
+原版组件来源与适配范围见 [UPSTREAM.md](UPSTREAM.md)。
 
 ## 合作规则
 
@@ -102,7 +114,7 @@ Windows 数据目录为 `%APPDATA%\PokeRogue-LAN`，可从程序菜单打开。
 ```powershell
 git clone https://github.com/northstreet01/pokerogue-lan.git
 cd pokerogue-lan
-git checkout v1.0.0-beta.5
+git checkout v1.0.0-beta.6
 npm ci --ignore-scripts
 node node_modules/electron/install.js
 npm run build:desktop

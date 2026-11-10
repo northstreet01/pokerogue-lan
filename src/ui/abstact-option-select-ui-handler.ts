@@ -1,10 +1,14 @@
 import BattleScene, { Button } from "../battle-scene";
-import { TextStyle, addTextObject } from "./text";
+import { TextStyle, addTextObject, addBBCodeTextObject, getTextColor } from "./text";
+import BBCodeText from 'phaser3-rex-plugins/plugins/bbcodetext';
 import { Mode } from "./ui";
 import UiHandler from "./ui-handler";
 import { addWindow } from "./window";
 
 export interface OptionSelectConfig {
+  captureMenu?: boolean;
+  supportHover?: boolean;
+  scale?: number;
   initialIndex?: number;
   contextLabel?: string;
   xOffset?: number;
@@ -19,6 +23,10 @@ export interface OptionSelectItem {
   handler: Function;
   keepOpen?: boolean;
   overrideSound?: boolean;
+  style?: TextStyle;
+  item?: 'candy';
+  itemArgs?: [string, string];
+  onHover?: () => void;
 }
 
 const scrollUpLabel = '↑';
@@ -27,7 +35,8 @@ const scrollDownLabel = '↓';
 export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
   protected optionSelectContainer: Phaser.GameObjects.Container;
   protected optionSelectBg: Phaser.GameObjects.NineSlice;
-  protected optionSelectText: Phaser.GameObjects.Text;
+  protected optionSelectText: Phaser.GameObjects.Text | BBCodeText;
+  private optionSelectIcons: Phaser.GameObjects.Sprite[] = [];
 
   protected config: OptionSelectConfig;
 
@@ -65,19 +74,38 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     if (this.optionSelectText)
       this.optionSelectText.destroy();
 
-    this.optionSelectText = addTextObject(this.scene, 0, 0, options.map(o => o.label).join('\n'), TextStyle.WINDOW, { maxLines: options.length });
+    this.optionSelectIcons.forEach(icon => icon.destroy());
+    this.optionSelectIcons = [];
+    // Ported from upstream BaseOptionSelectUiHandler: per-option text style,
+    // four-space item indentation, candy base/overlay and two species tints.
+    const rich = options.some(option => option.item || option.style !== undefined);
+    const format = (items: OptionSelectItem[]) => items.map(o => rich
+      ? `[shadow=${getTextColor(o.style ?? TextStyle.WINDOW, true)}][color=${getTextColor(o.style ?? TextStyle.WINDOW)}]${o.item ? '    ' : ''}${o.label}[/color][/shadow]`
+      : o.label).join('\n');
+
+    this.optionSelectText = (rich ? addBBCodeTextObject : addTextObject)(this.scene, 0, 0, format(options), TextStyle.WINDOW, { maxLines: options.length });
     this.optionSelectText.setLineSpacing(12);
     this.optionSelectContainer.add(this.optionSelectText);
     this.optionSelectContainer.setPosition((this.scene.game.canvas.width / 6) - 1 - (this.config?.xOffset || 0), -48 + (this.config?.yOffset || 0));
+    this.optionSelectContainer.setScale(this.config?.scale ?? 1);
 
     this.optionSelectBg.width = Math.max(this.optionSelectText.displayWidth + 24, this.getWindowWidth());
 
     if (this.config?.options.length > this.config?.maxOptions)
-      this.optionSelectText.setText(this.getOptionsWithScroll().map(o => o.label).join('\n'));
+      this.optionSelectText.setText(format(this.getOptionsWithScroll()));
 
     this.optionSelectBg.height = this.getWindowHeight();
 
     this.optionSelectText.setPositionRelative(this.optionSelectBg, 16, 9);
+    this.getOptionsWithScroll().forEach((option, index) => {
+      if (option.item !== 'candy') return;
+      const colors = option.itemArgs ?? ['ffffff', 'ffffff'];
+      for (const [layer, key] of ['candy', 'candy_overlay'].entries()) {
+        const icon = this.scene.add.sprite(this.optionSelectText.x + 5, this.optionSelectText.y + 6 + index * 16, key)
+          .setScale(.5).setTint(Number.parseInt(colors[layer].replace('#', ''), 16));
+        this.optionSelectIcons.push(icon); this.optionSelectContainer.add(icon);
+      }
+    });
     this.bindPointer(this.optionSelectText, (_pointer, _x, y) => {
       const options = this.getOptionsWithScroll();
       const cursor = Math.min(options.length - 1, Math.floor(y / this.optionSelectText.height * options.length));
@@ -95,6 +123,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     super.show(args);
 
     this.config = args[0] as OptionSelectConfig;
+    this.captureMenuInput = !!this.config.captureMenu;
     this.scrollCursor = 0;
     this.setupOptions();
 
@@ -103,6 +132,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     this.optionSelectContainer.setVisible(true);
     this.scrollCursor = 0;
     this.setCursor(0);
+    if (this.config.supportHover) this.config.options[0]?.onHover?.();
     const index=Math.min(Math.max(0,Math.trunc(this.config.initialIndex??0)),this.config.options.length-1);
     if(index){
       const limit=this.config.maxOptions;
@@ -119,6 +149,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
 
   processInput(button: Button): boolean {
     if (!this.active || !this.config?.options.length) return false;
+    if (button === Button.MENU && this.captureMenuInput) button = Button.CANCEL;
     const ui = this.getUi();
 
     let success = false;
@@ -233,6 +264,7 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
     }
 
     this.cursorObj.setPositionRelative(this.optionSelectBg, 12, 17 + this.cursor * 16);
+    if (changed && this.config?.supportHover) this.getOptionsWithScroll()[this.cursor]?.onHover?.();
 
     return changed;
   }
@@ -240,8 +272,11 @@ export default abstract class AbstractOptionSelectUiHandler extends UiHandler {
   clear() {
     super.clear();
     this.config = null;
+    this.captureMenuInput = false;
     this.optionSelectContainer.setVisible(false);
     this.eraseCursor();
+    this.optionSelectIcons.forEach(icon => icon.destroy());
+    this.optionSelectIcons = [];
   }
 
   eraseCursor() {
